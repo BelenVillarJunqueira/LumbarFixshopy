@@ -332,7 +332,7 @@ const defaultInitialData = {
     contacto: {
       whatsapp: "+5493515056742",
       mensajeWhatsApp: "Hola Lumbar Fix! Quiero consultar sobre la faja descompresora lumbar.",
-      instagram: "https://www.instagram.com/bigboss_import/",
+      instagram: "https://www.instagram.com/lumbarfix.argentina/",
       facebook: "https://www.facebook.com/profile.php?id=61591520707413",
       emailSoporte: "contacto@lumbarfix.com"
     },
