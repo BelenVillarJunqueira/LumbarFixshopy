@@ -319,11 +319,11 @@
     },
     "garantiaDias": 30,
     "datosBancarios": {
-      "banco": "Mercado Pago / Banco Santander",
-      "titular": "Lumbar Fix Oficial",
-      "cuit": "30-71829304-5",
-      "cbu": "0000003100010000123456",
-      "alias": "LUMBARFIX.PAGOS",
+      "banco": "Mercado Pago / Banco Galicia ",
+      "titular": "Lumbar Fix ",
+      "cuit": "23-37066549-4",
+      "cbu": "0070327530004092450465",
+      "alias": "RBVILLAR3.GAL",
       "instrucciones": "Realizá la transferencia por el total con el 10% de descuento aplicado y enviá el comprobante junto con tu código de seguimiento por WhatsApp para que despachemos hoy mismo."
     },
     "mercadopago": {

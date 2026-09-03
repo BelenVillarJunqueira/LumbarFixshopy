@@ -198,11 +198,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                             <Shield className="w-3.5 h-3.5 text-cyan-600" />
                             Credenciales iniciales por defecto:
                         </span>
-                        <div className="flex items-center gap-2 font-mono text-[11px] text-slate-700 bg-white/80 p-1.5 rounded border border-cyan-100">
-                            <span>Usuario: <b>admin</b></span>
-                            <span>|</span>
-                            <span>Contraseña: <b>lumbarfix2025</b></span>
-                        </div>
+
                         <p className="text-[10px] text-cyan-700">
                             * Podés cambiar tu contraseña desde la pestaña "Ajustes y Seguridad" una vez dentro.
                         </p>
