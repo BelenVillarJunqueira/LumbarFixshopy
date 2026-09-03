@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: lumbarfix-backend
+    env: node
+    plan: free
+
+    buildCommand: npm install && npm run build:backend
+
+    startCommand: npm start
+
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: FRONTEND_URL
+        sync: false
+
+      - key: MP_NOTIFICATION_URL
+        sync: false
+
+      - key: MP_ACCESS_TOKEN
+        sync: false
+
+      - key: MONGO_URI
+        sync: false
+
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: MAIL_USER
+        sync: false
+
+      - key: MAIL_PASS
+        sync: false

@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { X, Check, ShieldCheck, Truck, Lock, CreditCard, Banknote, Building, MessageCircle, Copy, CheckCheck, ExternalLink } from "lucide-react";
 import { CartItem, CustomerData, Order, SiteContent } from "../types";
 
+const API_URL = (((import.meta as ImportMeta & { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL) || window.location.origin || "").replace(/\/$/, "");
+
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -90,7 +92,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setLoading(true);
 
     try {
-      const res = await fetch("/api/orders", {
+      const res = await fetch(`${API_URL}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

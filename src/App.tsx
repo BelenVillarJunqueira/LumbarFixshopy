@@ -20,6 +20,9 @@ import { FloatingWhatsApp } from "./components/FloatingWhatsApp";
 
 import { Product, BundleOption, SiteContent, Order, CartItem } from "./types";
 
+const API_URL = "https://lumbarfix.onrender.com";
+
+
 export default function App() {
   // Data states from backend
   const [products, setProducts] = useState<Product[]>([]);
@@ -77,10 +80,10 @@ export default function App() {
       }
 
       const [prodsRes, bundlesRes, contentRes, ordersRes] = await Promise.all([
-        fetch("/api/products"),
-        fetch("/api/bundles"),
-        fetch("/api/site-content"),
-        fetch("/api/orders", { headers })
+        fetch(`${API_URL}/api/products`),
+        fetch(`${API_URL}/api/bundles`),
+        fetch(`${API_URL}/api/site-content`),
+        fetch(`${API_URL}/api/orders`, { headers })
       ]);
 
       const [prodsData, bundlesData, contentData, ordersData] = await Promise.all([
@@ -219,7 +222,7 @@ export default function App() {
     setIsAdminOpen(true);
     // Refresh orders and store content with admin permissions
     try {
-      const res = await fetch("/api/orders", {
+      const res = await fetch(`${API_URL}/api/orders`, {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
@@ -253,7 +256,10 @@ export default function App() {
 
   // Safe fetch helper for mutations
   const safeAdminFetch = async (url: string, options: RequestInit) => {
-    const res = await fetch(url, options);
+    const res = await fetch(
+    `${API_URL}${url}`,
+    options
+  );
     const rawText = await res.text();
     let data: any = {};
     try {
