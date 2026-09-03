@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { X, Check, ShieldCheck, Truck, Lock, CreditCard, Banknote, Building, MessageCircle } from "lucide-react";
-import { CartItem, CustomerData, Order } from "../types";
+import { X, Check, ShieldCheck, Truck, Lock, CreditCard, Banknote, Building, MessageCircle, Copy, CheckCheck, ExternalLink } from "lucide-react";
+import { CartItem, CustomerData, Order, SiteContent } from "../types";
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   cartItems: CartItem[];
+  siteContent?: SiteContent | null;
   onOrderPlaced: (order: Order) => void;
 }
 
@@ -13,6 +14,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isOpen,
   onClose,
   cartItems,
+  siteContent,
   onOrderPlaced
 }) => {
   const [formData, setFormData] = useState<CustomerData>({
@@ -34,8 +36,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [metodoPago, setMetodoPago] = useState<"contraentrega" | "mercadopago" | "transferencia" | "whatsapp">("contraentrega");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const datosBancarios = siteContent?.datosBancarios || {
+    banco: "Mercado Pago / Banco Galicia",
+    titular: "LUMBAR FIX OFICIAL",
+    cuit: "20-38492819-4",
+    cbu: "0000003100012345678901",
+    alias: "LUMBARFIX.PAGOS",
+    instrucciones: "Transferí el monto exacto con el 10% de descuento y enviá el comprobante con tu número de pedido por WhatsApp."
+  };
+
+  const copyToClipboard = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   const subtotal = cartItems.reduce((acc, item) => acc + item.precio * item.cantidad, 0);
   const descuento = metodoPago === "transferencia" ? Math.round(subtotal * 0.10) : 0;
@@ -82,9 +100,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         })
       });
 
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || "Error al procesar el pedido");
+      const rawText = await res.text();
+      let data: any = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        console.error("Order response parse error:", rawText);
+      }
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || "Error al procesar el pedido. Intentá nuevamente.");
       }
 
       // If user chose WhatsApp, we also open WhatsApp with order summary
@@ -96,6 +121,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           `Total: ${formatPrice(total)}\n` +
           `¿Me confirman los pasos para recibirlo? Gracias!`;
         window.open(`https://wa.me/5493515056742?text=${encodeURIComponent(text)}`, "_blank");
+      }
+
+      // If user chose Mercado Pago, attempt to redirect to real checkout preference
+      if (metodoPago === "mercadopago") {
+        try {
+          const mpRes = await fetch("/api/mercadopago/create-preference", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: data.order.id,
+              items: cartItems,
+              payer: {
+                name: formData.nombre,
+                surname: formData.apellido,
+                email: formData.email || "comprador@lumbarfix.com",
+                phone: { number: formData.telefono }
+              }
+            })
+          });
+          const mpData = await mpRes.json();
+          if (mpData.success && mpData.initPoint) {
+            onOrderPlaced(data.order);
+            window.location.href = mpData.initPoint;
+            return;
+          }
+        } catch (mpErr) {
+          console.warn("Mercado Pago preference creation skipped or not configured yet:", mpErr);
+        }
       }
 
       onOrderPlaced(data.order);
@@ -243,6 +296,94 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Contextual Payment Details for Bank Transfer */}
+            {metodoPago === "transferencia" && (
+              <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 text-purple-950 space-y-3 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Building className="w-4 h-4 text-purple-700" />
+                    <span className="font-bold text-xs uppercase tracking-wide text-purple-900">
+                      Datos para tu Transferencia (-10% OFF Aplicado)
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-bold bg-purple-200 text-purple-900 px-2 py-0.5 rounded-full">
+                    Abonás {formatPrice(total)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-purple-100">
+                    <span className="text-[10px] uppercase font-bold text-purple-600 block">Banco o Billetera</span>
+                    <span className="font-bold text-slate-900">{datosBancarios.banco}</span>
+                  </div>
+
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-purple-100">
+                    <span className="text-[10px] uppercase font-bold text-purple-600 block">Titular de la Cuenta</span>
+                    <span className="font-bold text-slate-900">{datosBancarios.titular}</span>
+                  </div>
+
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-purple-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-purple-600 block">Alias</span>
+                      <span className="font-mono font-bold text-slate-900 text-xs sm:text-sm">{datosBancarios.alias}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(datosBancarios.alias, "alias")}
+                      className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      {copiedField === "alias" ? <CheckCheck className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedField === "alias" ? "Copiado" : "Copiar"}</span>
+                    </button>
+                  </div>
+
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-purple-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-purple-600 block">CBU / CVU</span>
+                      <span className="font-mono font-bold text-slate-900 text-[11px] sm:text-xs truncate max-w-[140px] sm:max-w-[180px] block">
+                        {datosBancarios.cbu}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(datosBancarios.cbu, "cbu")}
+                      className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      {copiedField === "cbu" ? <CheckCheck className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedField === "cbu" ? "Copiado" : "Copiar"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {datosBancarios.cuit && (
+                  <div className="text-[11px] text-purple-800 font-medium">
+                    <b>CUIT/CUIL:</b> {datosBancarios.cuit}
+                  </div>
+                )}
+
+                {datosBancarios.instrucciones && (
+                  <p className="text-[11px] text-purple-900/90 italic bg-purple-100/60 p-2 rounded-lg">
+                    📌 {datosBancarios.instrucciones}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Contextual Payment Details for Mercado Pago */}
+            {metodoPago === "mercadopago" && (
+              <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950 space-y-2 animate-fadeIn text-xs">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-sky-600" />
+                  <span className="font-bold uppercase tracking-wide text-sky-900 text-xs">
+                    Pago Online Seguro con Mercado Pago
+                  </span>
+                </div>
+                <p className="text-[11px] text-sky-800 leading-relaxed">
+                  Podrás pagar con tarjetas de crédito (en cuotas), tarjeta de débito o con tu dinero disponible en cuenta de Mercado Pago. Al confirmar tu pedido, te redirigiremos a la pasarela oficial protegida de Mercado Pago.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Customer Address Form */}

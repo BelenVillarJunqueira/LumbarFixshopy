@@ -105,6 +105,19 @@ export interface SiteContent {
     facebook: string;
     emailSoporte: string;
   };
+  datosBancarios: {
+    banco: string;
+    titular: string;
+    cuit: string;
+    cbu: string;
+    alias: string;
+    instrucciones: string;
+  };
+  mercadopago: {
+    activo: boolean;
+    accessToken?: string;
+    publicKey?: string;
+  };
   garantiaDias: number;
 }
 

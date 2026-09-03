@@ -84,21 +84,29 @@ export const Footer: React.FC<FooterProps> = ({ siteContent, onOpenAdmin }) => {
             </ul>
           </div>
 
-          {/* Col 4: Store Admin */}
+          {/* Col 4: Métodos de Pago Aceptados */}
           <div className="space-y-3 text-xs bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
             <h4 className="font-bold text-slate-200 flex items-center gap-1.5">
-              <Settings className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Administración de Tienda</span>
+              <Lock className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Compra 100% Protegida</span>
             </h4>
-            <p className="text-[11px] text-slate-400">
-              Podés modificar imágenes, precios, stock, textos y revisar los pedidos entrantes del backend.
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Cobros seguros con Mercado Pago, tarjetas de crédito y débito, transferencia bancaria directa (-10% OFF) y pago contra entrega al cartero.
             </p>
-            <button
-              onClick={onOpenAdmin}
-              className="w-full py-2 px-3 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>Abrir Panel de Control</span>
-            </button>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-semibold border border-slate-700">
+                💙 Mercado Pago
+              </span>
+              <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-semibold border border-slate-700">
+                💳 Tarjetas
+              </span>
+              <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-semibold border border-slate-700">
+                🏦 CBU / Transferencia
+              </span>
+              <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-semibold border border-slate-700">
+                📦 Contra Entrega
+              </span>
+            </div>
           </div>
         </div>
 
@@ -108,7 +116,15 @@ export const Footer: React.FC<FooterProps> = ({ siteContent, onOpenAdmin }) => {
           <div className="flex items-center gap-4">
             <span className="hover:text-slate-400 cursor-pointer">Términos de Servicio</span>
             <span className="hover:text-slate-400 cursor-pointer">Políticas de Privacidad</span>
-            <span className="hover:text-slate-400 cursor-pointer">Defensa del Consumidor</span>
+            {/* Acceso discreto para el dueño */}
+            <button
+              onClick={onOpenAdmin}
+              className="text-slate-500 hover:text-cyan-400 transition-colors flex items-center gap-1 cursor-pointer"
+              title="Acceso exclusivo administración"
+            >
+              <Lock className="w-3 h-3" />
+              <span>Acceso Dueño</span>
+            </button>
           </div>
         </div>
       </div>

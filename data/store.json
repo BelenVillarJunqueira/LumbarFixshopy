@@ -315,9 +315,22 @@
       "mensajeWhatsApp": "Hola Lumbar Fix! Quiero consultar sobre la faja descompresora lumbar.",
       "instagram": "https://www.instagram.com/bigboss_import/",
       "facebook": "https://www.facebook.com/profile.php?id=61591520707413",
-      "emailSoporte": "contacto@lumbarfix.com"
+      "emailSoporte": "lumbarfixargentina@gmail.com"
     },
-    "garantiaDias": 30
+    "garantiaDias": 30,
+    "datosBancarios": {
+      "banco": "Mercado Pago / Banco Santander",
+      "titular": "Lumbar Fix Oficial",
+      "cuit": "30-71829304-5",
+      "cbu": "0000003100010000123456",
+      "alias": "LUMBARFIX.PAGOS",
+      "instrucciones": "Realizá la transferencia por el total con el 10% de descuento aplicado y enviá el comprobante junto con tu código de seguimiento por WhatsApp para que despachemos hoy mismo."
+    },
+    "mercadopago": {
+      "activo": true,
+      "accessToken": "",
+      "publicKey": ""
+    }
   },
   "orders": [
     {
@@ -352,5 +365,9 @@
       "fecha": "2026-09-03T19:18:56.793Z",
       "notasAdmin": ""
     }
-  ]
+  ],
+  "admin": {
+    "username": "admin",
+    "password": "lumbarfix2025"
+  }
 }

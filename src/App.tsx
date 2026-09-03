@@ -15,6 +15,7 @@ import { CartDrawer } from "./components/CartDrawer";
 import { CheckoutModal } from "./components/CheckoutModal";
 import { OrderConfirmationModal } from "./components/OrderConfirmationModal";
 import { AdminModal } from "./components/AdminModal";
+import { AdminLoginModal } from "./components/AdminLoginModal";
 import { FloatingWhatsApp } from "./components/FloatingWhatsApp";
 
 import { Product, BundleOption, SiteContent, Order, CartItem } from "./types";
@@ -40,6 +41,21 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+  const [adminToken, setAdminToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("lumbarfix_admin_token");
+    } catch {
+      return null;
+    }
+  });
+  const [adminUsername, setAdminUsername] = useState<string>(() => {
+    try {
+      return localStorage.getItem("lumbarfix_admin_user") || "admin";
+    } catch {
+      return "admin";
+    }
+  });
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
 
   // Persist cart
@@ -54,18 +70,24 @@ export default function App() {
   // Initial fetch from backend
   const fetchData = async () => {
     try {
+      const token = localStorage.getItem("lumbarfix_admin_token") || "";
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const [prodsRes, bundlesRes, contentRes, ordersRes] = await Promise.all([
         fetch("/api/products"),
         fetch("/api/bundles"),
         fetch("/api/site-content"),
-        fetch("/api/orders")
+        fetch("/api/orders", { headers })
       ]);
 
       const [prodsData, bundlesData, contentData, ordersData] = await Promise.all([
-        prodsRes.json(),
-        bundlesRes.json(),
-        contentRes.json(),
-        ordersRes.json()
+        prodsRes.json().catch(() => ({ success: false })),
+        bundlesRes.json().catch(() => ({ success: false })),
+        contentRes.json().catch(() => ({ success: false })),
+        ordersRes.json().catch(() => ({ success: false }))
       ]);
 
       if (prodsData.success && prodsData.products) setProducts(prodsData.products);
@@ -181,15 +203,75 @@ export default function App() {
     }
   };
 
-  // Backend mutations from Admin Modal
+  // Authentication & Admin Access Control
+  const handleOpenAdmin = () => {
+    if (adminToken) {
+      setIsAdminOpen(true);
+    } else {
+      setIsAdminLoginOpen(true);
+    }
+  };
+
+  const handleAdminLoginSuccess = async (token: string, username: string) => {
+    setAdminToken(token);
+    setAdminUsername(username);
+    setIsAdminLoginOpen(false);
+    setIsAdminOpen(true);
+    // Refresh orders and store content with admin permissions
+    try {
+      const res = await fetch("/api/orders", {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json().catch(() => null);
+      if (data && data.success && data.orders) {
+        setOrders(data.orders);
+      }
+    } catch (e) {
+      console.warn("Could not fetch orders on login:", e);
+    }
+  };
+
+  const handleAdminLogout = () => {
+    try {
+      localStorage.removeItem("lumbarfix_admin_token");
+      localStorage.removeItem("lumbarfix_admin_user");
+    } catch {}
+    setAdminToken(null);
+    setIsAdminOpen(false);
+  };
+
+  const getAdminHeaders = () => {
+    const token = adminToken || localStorage.getItem("lumbarfix_admin_token") || "";
+    return {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    };
+  };
+
+  // Safe fetch helper for mutations
+  const safeAdminFetch = async (url: string, options: RequestInit) => {
+    const res = await fetch(url, options);
+    const rawText = await res.text();
+    let data: any = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      console.error("Non-JSON response from:", url, rawText);
+    }
+    return { ok: res.ok, status: res.status, data };
+  };
+
+  // Backend mutations from Admin Modal (protected with Admin Token)
   const handleUpdateProduct = async (updatedProduct: Product) => {
-    const res = await fetch(`/api/products/${updatedProduct.id}`, {
+    const { data } = await safeAdminFetch(`/api/products/${updatedProduct.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAdminHeaders(),
       body: JSON.stringify(updatedProduct)
     });
-    const data = await res.json();
-    if (data.success) {
+    if (data && data.success) {
       setProducts((prev) =>
         prev.map((p) => (p.id === updatedProduct.id ? data.product : p))
       );
@@ -197,37 +279,34 @@ export default function App() {
   };
 
   const handleUpdateBundles = async (updatedBundles: BundleOption[]) => {
-    const res = await fetch("/api/bundles", {
+    const { data } = await safeAdminFetch("/api/bundles", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAdminHeaders(),
       body: JSON.stringify(updatedBundles)
     });
-    const data = await res.json();
-    if (data.success) {
+    if (data && data.success) {
       setBundles(data.bundles);
     }
   };
 
   const handleUpdateSiteContent = async (updatedContent: SiteContent) => {
-    const res = await fetch("/api/site-content", {
+    const { data } = await safeAdminFetch("/api/site-content", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAdminHeaders(),
       body: JSON.stringify(updatedContent)
     });
-    const data = await res.json();
-    if (data.success) {
+    if (data && data.success) {
       setSiteContent(data.siteContent);
     }
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: Order["estado"]) => {
-    const res = await fetch(`/api/orders/${orderId}`, {
+    const { data } = await safeAdminFetch(`/api/orders/${orderId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ estado: status })
     });
-    const data = await res.json();
-    if (data.success) {
+    if (data && data.success) {
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? data.order : o))
       );
@@ -235,31 +314,32 @@ export default function App() {
   };
 
   const handleCreateProduct = async (newProd: Partial<Product>) => {
-    const res = await fetch("/api/products", {
+    const { data } = await safeAdminFetch("/api/products", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAdminHeaders(),
       body: JSON.stringify(newProd)
     });
-    const data = await res.json();
-    if (data.success) {
+    if (data && data.success) {
       setProducts((prev) => [...prev, data.product]);
     }
   };
 
   const handleDeleteProduct = async (prodId: string) => {
-    const res = await fetch(`/api/products/${prodId}`, {
-      method: "DELETE"
+    const { data } = await safeAdminFetch(`/api/products/${prodId}`, {
+      method: "DELETE",
+      headers: getAdminHeaders()
     });
-    const data = await res.json();
-    if (data.success) {
+    if (data && data.success) {
       setProducts((prev) => prev.filter((p) => p.id !== prodId));
     }
   };
 
   const handleResetDefaults = async () => {
-    const res = await fetch("/api/reset-demo-data", { method: "POST" });
-    const data = await res.json();
-    if (data.success) {
+    const { data } = await safeAdminFetch("/api/reset-demo-data", {
+      method: "POST",
+      headers: getAdminHeaders()
+    });
+    if (data && data.success) {
       await fetchData();
     }
   };
@@ -283,7 +363,7 @@ export default function App() {
       <Navbar
         cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAdmin={handleOpenAdmin}
         siteContent={siteContent}
       />
 
@@ -343,7 +423,7 @@ export default function App() {
       {/* 11. Footer */}
       <Footer
         siteContent={siteContent}
-        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAdmin={handleOpenAdmin}
       />
 
       {/* 12. Floating Sticky Elements */}
@@ -371,6 +451,7 @@ export default function App() {
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
         cartItems={cart}
+        siteContent={siteContent}
         onOrderPlaced={handleOrderPlaced}
       />
 
@@ -380,23 +461,36 @@ export default function App() {
         onClose={() => setConfirmedOrder(null)}
       />
 
-      {/* 16. Admin CMS & Store Manager Modal */}
-      <AdminModal
-        isOpen={isAdminOpen}
-        onClose={() => setIsAdminOpen(false)}
-        product={mainProduct}
-        bundles={bundles}
-        products={products}
-        siteContent={siteContent}
-        orders={orders}
-        onUpdateProduct={handleUpdateProduct}
-        onUpdateBundles={handleUpdateBundles}
-        onUpdateSiteContent={handleUpdateSiteContent}
-        onUpdateOrderStatus={handleUpdateOrderStatus}
-        onCreateProduct={handleCreateProduct}
-        onDeleteProduct={handleDeleteProduct}
-        onResetDefaults={handleResetDefaults}
+      {/* 16. Admin Login Gate Modal (Password Protection) */}
+      <AdminLoginModal
+        isOpen={isAdminLoginOpen}
+        onClose={() => setIsAdminLoginOpen(false)}
+        onSuccess={handleAdminLoginSuccess}
+        onLoginSuccess={handleAdminLoginSuccess}
       />
+
+      {/* 17. Admin CMS & Store Manager Modal (Accessible ONLY when authenticated) */}
+      {isAdminOpen && adminToken && (
+        <AdminModal
+          isOpen={isAdminOpen}
+          onClose={() => setIsAdminOpen(false)}
+          product={mainProduct}
+          bundles={bundles}
+          products={products}
+          siteContent={siteContent}
+          orders={orders}
+          adminToken={adminToken}
+          adminUsername={adminUsername}
+          onLogout={handleAdminLogout}
+          onUpdateProduct={handleUpdateProduct}
+          onUpdateBundles={handleUpdateBundles}
+          onUpdateSiteContent={handleUpdateSiteContent}
+          onUpdateOrderStatus={handleUpdateOrderStatus}
+          onCreateProduct={handleCreateProduct}
+          onDeleteProduct={handleDeleteProduct}
+          onResetDefaults={handleResetDefaults}
+        />
+      )}
     </div>
   );
 }

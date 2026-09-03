@@ -13,7 +13,15 @@ import {
   Download,
   Image as ImageIcon,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  CreditCard,
+  Building,
+  Lock,
+  LogOut,
+  Key,
+  ShieldCheck,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Product, SiteContent, Order, BundleOption } from "../types";
 
@@ -25,6 +33,9 @@ interface AdminModalProps {
   products: Product[];
   siteContent: SiteContent;
   orders: Order[];
+  adminToken?: string;
+  adminUsername?: string;
+  onLogout?: () => void;
   onUpdateProduct: (product: Product) => Promise<void>;
   onUpdateBundles: (bundles: BundleOption[]) => Promise<void>;
   onUpdateSiteContent: (content: SiteContent) => Promise<void>;
@@ -42,6 +53,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   products,
   siteContent,
   orders,
+  adminToken,
+  adminUsername,
+  onLogout,
   onUpdateProduct,
   onUpdateBundles,
   onUpdateSiteContent,
@@ -50,14 +64,37 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onDeleteProduct,
   onResetDefaults
 }) => {
-  const [activeTab, setActiveTab] = useState<"producto" | "landing" | "catalogo" | "pedidos" | "ajustes">("producto");
+  const [activeTab, setActiveTab] = useState<"producto" | "landing" | "catalogo" | "pedidos" | "pagos" | "ajustes">("producto");
 
   // Local editing states
   const [prodForm, setProdForm] = useState<Product>({ ...product });
   const [bundlesForm, setBundlesForm] = useState<BundleOption[]>([...bundles]);
-  const [contentForm, setContentForm] = useState<SiteContent>({ ...siteContent });
+  const [contentForm, setContentForm] = useState<SiteContent>({
+    ...siteContent,
+    datosBancarios: siteContent.datosBancarios || {
+      banco: "Mercado Pago / Banco Galicia",
+      titular: "LUMBAR FIX OFICIAL",
+      cuit: "20-38492819-4",
+      cbu: "0000003100012345678901",
+      alias: "LUMBARFIX.PAGOS",
+      instrucciones: "Transferí el monto exacto con el 10% de descuento y enviá el comprobante con tu número de pedido."
+    },
+    mercadopago: siteContent.mercadopago || {
+      activo: false,
+      accessToken: "",
+      publicKey: ""
+    }
+  });
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Security password change form
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newUsername, setNewUsername] = useState(adminUsername || "admin");
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passStatus, setPassStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [changingPass, setChangingPass] = useState(false);
 
   // New product form
   const [newProd, setNewProd] = useState({
@@ -162,6 +199,49 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     });
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPassStatus(null);
+    setChangingPass(true);
+    try {
+      const token = adminToken || localStorage.getItem("lumbarfix_admin_token") || "";
+      const res = await fetch("/api/admin/change-credentials", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: currentPassword.trim(),
+          newUsername: newUsername.trim(),
+          newPassword: newPassword.trim()
+        })
+      });
+      const rawText = await res.text();
+      let data: any = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        console.error("Non-JSON response in change-credentials:", rawText);
+      }
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || "No se pudo cambiar la contraseña.");
+      }
+      if (data.token) {
+        localStorage.setItem("lumbarfix_admin_token", data.token);
+        localStorage.setItem("lumbarfix_admin_user", data.username);
+      }
+      setPassStatus({ type: "success", msg: "¡Contraseña de administrador actualizada con éxito!" });
+      setCurrentPassword("");
+      setNewPassword("");
+    } catch (err: any) {
+      setPassStatus({ type: "error", msg: err.message || "Error al actualizar contraseña." });
+    } finally {
+      setChangingPass(false);
+    }
+  };
+
   const exportOrdersCSV = () => {
     if (orders.length === 0) {
       alert("No hay pedidos para exportar.");
@@ -201,21 +281,33 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               <h2 className="text-base sm:text-lg font-bold font-['Space_Grotesk'] flex items-center gap-2">
                 Panel de Control & CMS Lumbar Fix
                 <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-mono">
-                  BACKEND ACTIVO
+                  SESIÓN: {adminUsername || "admin"}
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Modificá productos, precios, imágenes, textos y administrá tus ventas.
+                Modificá productos, precios, cobros de Mercado Pago, CBU bancario y administrá tus ventas.
               </p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-800 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                title="Cerrar sesión de administrador"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Cerrar Sesión</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Tab Selector */}
@@ -229,7 +321,34 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             }`}
           >
             <Package className="w-4 h-4" />
-            <span>Producto Principal & Packs</span>
+            <span>Producto & Packs</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("pagos")}
+            className={`px-4 py-2.5 text-xs font-bold rounded-t-xl transition-colors flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "pagos"
+                ? "bg-white text-emerald-700 border-t-2 border-emerald-600 shadow-xs font-extrabold"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <CreditCard className="w-4 h-4 text-emerald-600" />
+            <span>Pagos, Mercado Pago & CBU</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("pedidos")}
+            className={`px-4 py-2.5 text-xs font-bold rounded-t-xl transition-colors flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "pedidos"
+                ? "bg-white text-cyan-700 border-t-2 border-cyan-600 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span>Ventas y Pedidos ({orders.length})</span>
+            {orders.filter((o) => o.estado === "Pendiente").length > 0 && (
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+            )}
           </button>
 
           <button
@@ -257,21 +376,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab("pedidos")}
-            className={`px-4 py-2.5 text-xs font-bold rounded-t-xl transition-colors flex items-center gap-2 whitespace-nowrap ${
-              activeTab === "pedidos"
-                ? "bg-white text-cyan-700 border-t-2 border-cyan-600 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Ventas y Pedidos ({orders.length})</span>
-            {orders.filter((o) => o.estado === "Pendiente").length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-            )}
-          </button>
-
-          <button
             onClick={() => setActiveTab("ajustes")}
             className={`px-4 py-2.5 text-xs font-bold rounded-t-xl transition-colors flex items-center gap-2 whitespace-nowrap ${
               activeTab === "ajustes"
@@ -279,8 +383,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <RefreshCw className="w-4 h-4" />
-            <span>Ajustes & WhatsApp</span>
+            <ShieldCheck className="w-4 h-4 text-cyan-600" />
+            <span>Ajustes & Contraseña</span>
           </button>
         </div>
 
@@ -879,19 +983,396 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           )}
 
           {/* ========================================================= */}
-          {/* TAB 5: AJUSTES & RESTAURAR */}
+          {/* TAB: PAGOS, MERCADO PAGO & CBU BANCARIO */}
+          {/* ========================================================= */}
+          {activeTab === "pagos" && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-emerald-600" />
+                  Configuración de Cobros & Medios de Pago
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Configurá aquí tu cuenta de Mercado Pago para recibir el dinero de las ventas y tu CBU bancario para transferencias.
+                </p>
+              </div>
+
+              {/* 1. Mercado Pago Configuration */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 text-xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center font-bold text-sm">
+                      MP
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">Mercado Pago Oficial</h4>
+                      <p className="text-slate-500 text-[11px]">
+                        Cobrá con tarjetas de crédito, débito y dinero en cuenta directamente a tu bolsillo.
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <span className="text-[11px] font-bold text-slate-700">Habilitar Mercado Pago</span>
+                    <input
+                      type="checkbox"
+                      checked={contentForm.mercadopago?.activo ?? false}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          mercadopago: {
+                            ...contentForm.mercadopago,
+                            activo: e.target.checked,
+                            accessToken: contentForm.mercadopago?.accessToken || "",
+                            publicKey: contentForm.mercadopago?.publicKey || ""
+                          }
+                        })
+                      }
+                      className="w-4 h-4 rounded text-cyan-600 focus:ring-cyan-500 cursor-pointer"
+                    />
+                  </label>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Access Token de Mercado Pago (Producción) *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={contentForm.mercadopago?.accessToken || ""}
+                        onChange={(e) =>
+                          setContentForm({
+                            ...contentForm,
+                            mercadopago: {
+                              ...contentForm.mercadopago,
+                              activo: true,
+                              accessToken: e.target.value.trim(),
+                              publicKey: contentForm.mercadopago?.publicKey || ""
+                            }
+                          })
+                        }
+                        placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        className="w-full p-2.5 pr-10 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      El Access Token comienza con <code className="bg-slate-100 px-1 rounded text-slate-800 font-bold">APP_USR-</code>. Es la llave que le permite a Mercado Pago acreditarte el dinero en tu cuenta bancaria.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Public Key (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={contentForm.mercadopago?.publicKey || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          mercadopago: {
+                            ...contentForm.mercadopago,
+                            activo: contentForm.mercadopago?.activo ?? true,
+                            accessToken: contentForm.mercadopago?.accessToken || "",
+                            publicKey: e.target.value.trim()
+                          }
+                        })
+                      }
+                      placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Step by step guide */}
+                  <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 space-y-2">
+                    <span className="font-bold flex items-center gap-1.5 text-xs text-sky-900">
+                      <ExternalLink className="w-3.5 h-3.5 text-sky-600" />
+                      ¿Cómo obtener tu Access Token para cobrar el dinero real?
+                    </span>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-sky-900 leading-relaxed">
+                      <li>
+                        Ingresá a tu cuenta en{" "}
+                        <a
+                          href="https://www.mercadopago.com/developers"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold underline hover:text-sky-700"
+                        >
+                          mercadopago.com/developers
+                        </a>
+                      </li>
+                      <li>Hacé clic en <b>"Tus integraciones"</b> (arriba a la derecha) y seleccioná o creá tu aplicación (ej: <i>Lumbar Fix</i>).</li>
+                      <li>En el menú lateral, seleccioná <b>"Credenciales de producción"</b>.</li>
+                      <li>Copiá el <b>Access Token</b> (comienza con <code>APP_USR-</code>) y pegalo en el casillero de arriba.</li>
+                      <li>Hacé clic en el botón <b>"Guardar Configuración de Mercado Pago"</b> aquí abajo.</li>
+                    </ol>
+                  </div>
+
+                  <button
+                    onClick={handleSaveContent}
+                    disabled={saving}
+                    className="py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Guardar Configuración de Mercado Pago</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Bank Transfer / Deposit Details */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 text-xs">
+                <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center font-bold text-sm">
+                    <Building className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Datos Bancarios para Transferencias (CBU / CVU / Alias)</h4>
+                    <p className="text-slate-500 text-[11px]">
+                      Estos datos se le muestran al comprador en pantalla y se le envían por WhatsApp para que te deposite con 10% OFF.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Nombre del Banco o Billetera</label>
+                    <input
+                      type="text"
+                      value={contentForm.datosBancarios?.banco || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          datosBancarios: {
+                            ...contentForm.datosBancarios!,
+                            banco: e.target.value
+                          }
+                        })
+                      }
+                      placeholder="Ej: Mercado Pago / Banco Santander / BBVA / Galicia / Ualá"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Nombre del Titular de la Cuenta</label>
+                    <input
+                      type="text"
+                      value={contentForm.datosBancarios?.titular || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          datosBancarios: {
+                            ...contentForm.datosBancarios!,
+                            titular: e.target.value
+                          }
+                        })
+                      }
+                      placeholder="Ej: JUAN PEREZ o TU EMPRESA S.A."
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">CBU o CVU (22 dígitos)</label>
+                    <input
+                      type="text"
+                      value={contentForm.datosBancarios?.cbu || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          datosBancarios: {
+                            ...contentForm.datosBancarios!,
+                            cbu: e.target.value.trim()
+                          }
+                        })
+                      }
+                      placeholder="0000003100012345678901"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono focus:ring-2 focus:ring-cyan-500 focus:outline-none font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Alias Bancario</label>
+                    <input
+                      type="text"
+                      value={contentForm.datosBancarios?.alias || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          datosBancarios: {
+                            ...contentForm.datosBancarios!,
+                            alias: e.target.value.trim().toUpperCase()
+                          }
+                        })
+                      }
+                      placeholder="LUMBARFIX.PAGOS"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono uppercase focus:ring-2 focus:ring-cyan-500 focus:outline-none font-bold"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="font-semibold text-slate-700 block mb-1">CUIT / CUIL del Titular</label>
+                    <input
+                      type="text"
+                      value={contentForm.datosBancarios?.cuit || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          datosBancarios: {
+                            ...contentForm.datosBancarios!,
+                            cuit: e.target.value.trim()
+                          }
+                        })
+                      }
+                      placeholder="20-38492819-4"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono focus:ring-2 focus:ring-cyan-500 focus:outline-none font-medium"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="font-semibold text-slate-700 block mb-1">Instrucciones Adicionales para el Cliente</label>
+                    <textarea
+                      rows={2}
+                      value={contentForm.datosBancarios?.instrucciones || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          datosBancarios: {
+                            ...contentForm.datosBancarios!,
+                            instrucciones: e.target.value
+                          }
+                        })
+                      }
+                      placeholder="Ej: Transferí el monto exacto con el 10% de descuento y enviá el comprobante con tu número de pedido por WhatsApp."
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSaveContent}
+                  disabled={saving}
+                  className="py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Guardar Datos Bancarios</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 5: AJUSTES & SEGURIDAD */}
           {/* ========================================================= */}
           {activeTab === "ajustes" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Configuración de la Tienda
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-cyan-600" />
+                  Seguridad y Ajustes de la Tienda
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Ajustes de contacto, WhatsApp y restauración de datos.
+                  Cambiá tu contraseña de administrador y configurá tus canales de atención.
                 </p>
               </div>
 
+              {/* Password & Security Change */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 text-xs">
+                <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center font-bold">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Cambiar Usuario y Contraseña de Administrador</h4>
+                    <p className="text-slate-500 text-[11px]">
+                      Asegurá tu tienda para que solo vos puedas modificar precios, productos y configuraciones.
+                    </p>
+                  </div>
+                </div>
+
+                {passStatus && (
+                  <div
+                    className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                      passStatus.type === "success"
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                        : "bg-rose-50 border-rose-200 text-rose-800"
+                    }`}
+                  >
+                    {passStatus.type === "success" ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    )}
+                    <span>{passStatus.msg}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleChangePassword} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">
+                        Contraseña Actual *
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">
+                        Nombre de Usuario de Administrador
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newUsername}
+                        onChange={(e) => setNewUsername(e.target.value)}
+                        placeholder="admin"
+                        className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="font-semibold text-slate-700 block mb-1">
+                        Nueva Contraseña *
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Ingresá tu nueva contraseña segura"
+                        className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={changingPass}
+                    className="py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-cyan-600 text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+                  >
+                    <Key className="w-4 h-4" />
+                    <span>{changingPass ? "Actualizando..." : "Guardar Nueva Contraseña"}</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Channels & WhatsApp */}
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
                 <h4 className="font-bold text-slate-700 uppercase tracking-wider">
                   Canales de Contacto
