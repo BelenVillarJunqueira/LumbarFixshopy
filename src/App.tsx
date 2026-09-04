@@ -110,10 +110,10 @@ export default function App() {
       }
 
       const [prodsRes, bundlesRes, contentRes, ordersRes] = await Promise.all([
-        fetch("/api/products"),
-        fetch("/api/bundles"),
-        fetch("/api/site-content"),
-        fetch("/api/orders", { headers })
+        fetch(`${API_URL}/api/products`),
+        fetch(`${API_URL}/api/bundles`),
+        fetch(`${API_URL}/api/site-content`),
+        fetch(`${API_URL}/api/orders`, { headers })
       ]);
 
       const [prodsData, bundlesData, contentData, ordersData] = await Promise.all([
@@ -277,7 +277,7 @@ export default function App() {
     try {
       localStorage.removeItem("lumbarfix_admin_token");
       localStorage.removeItem("lumbarfix_admin_user");
-    } catch {}
+    } catch { }
     setAdminToken(null);
     setIsAdminOpen(false);
   };
@@ -321,7 +321,7 @@ export default function App() {
       token = "adm_master_session_lumbarfix";
       try {
         localStorage.setItem("lumbarfix_admin_token", token);
-      } catch {}
+      } catch { }
     }
     return {
       "Content-Type": "application/json",
@@ -370,10 +370,10 @@ export default function App() {
     // 2. Client-side resilience cache
     try {
       localStorage.setItem(`lumbarfix_saved_${targetId}`, JSON.stringify(productToSave));
-    } catch {}
+    } catch { }
 
     // 3. Persist to backend database
-    const { ok, data } = await safeAdminFetch(`/api/products/${targetId}`, {
+    const { ok, data } = await safeAdminFetch(`${API_URL}/api/products/${targetId}`, {
       method: "PUT",
       headers: getAdminHeaders(),
       body: JSON.stringify(productToSave)
@@ -385,7 +385,7 @@ export default function App() {
       );
       try {
         localStorage.setItem(`lumbarfix_saved_${targetId}`, JSON.stringify(data.product));
-      } catch {}
+      } catch { }
       return data.product;
     } else {
       console.error("Failed to persist product to server:", data);
@@ -395,7 +395,7 @@ export default function App() {
 
   const handleUpdateBundles = async (updatedBundles: BundleOption[]) => {
     setBundles(updatedBundles);
-    const { ok, data } = await safeAdminFetch("/api/bundles", {
+    const { ok, data } = await safeAdminFetch(`${API_URL}/api/bundles`, {
       method: "PUT",
       headers: getAdminHeaders(),
       body: JSON.stringify(updatedBundles)
@@ -410,7 +410,7 @@ export default function App() {
 
   const handleUpdateSiteContent = async (updatedContent: SiteContent) => {
     setSiteContent(updatedContent);
-    const { ok, data } = await safeAdminFetch("/api/site-content", {
+    const { ok, data } = await safeAdminFetch(`${API_URL}/api/site-content`, {
       method: "PUT",
       headers: getAdminHeaders(),
       body: JSON.stringify(updatedContent)
@@ -424,7 +424,7 @@ export default function App() {
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: Order["estado"]) => {
-    const { data } = await safeAdminFetch(`/api/orders/${orderId}`, {
+    const { data } = await safeAdminFetch(`${API_URL}/api/orders/${orderId}`, {
       method: "PATCH",
       headers: getAdminHeaders(),
       body: JSON.stringify({ estado: status })
@@ -437,7 +437,7 @@ export default function App() {
   };
 
   const handleCreateProduct = async (newProd: Partial<Product>) => {
-    const { data } = await safeAdminFetch("/api/products", {
+    const { data } = await safeAdminFetch(`${API_URL}/api/products`, {
       method: "POST",
       headers: getAdminHeaders(),
       body: JSON.stringify(newProd)
@@ -448,7 +448,7 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (prodId: string) => {
-    const { data } = await safeAdminFetch(`/api/products/${prodId}`, {
+    const { data } = await safeAdminFetch(`${API_URL}/api/products/${prodId}`, {
       method: "DELETE",
       headers: getAdminHeaders()
     });
@@ -458,7 +458,7 @@ export default function App() {
   };
 
   const handleResetDefaults = async () => {
-    const { data } = await safeAdminFetch("/api/reset-demo-data", {
+    const { data } = await safeAdminFetch(`${API_URL}/api/reset-demo-data`, {
       method: "POST",
       headers: getAdminHeaders()
     });
