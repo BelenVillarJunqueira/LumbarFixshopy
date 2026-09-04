@@ -6,6 +6,9 @@ export interface Product {
   stock: number;
   img: string;
   galeria?: string[];
+  reelUrl?: string;
+  reelTitulo?: string;
+  reelActivo?: boolean;
   descripcion?: string;
   activo: boolean;
   badge?: string;

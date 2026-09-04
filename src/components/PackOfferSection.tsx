@@ -24,7 +24,7 @@ export const PackOfferSection: React.FC<PackOfferSectionProps> = ({
   };
 
   return (
-    <section id="pack-recomendado" className="py-16 sm:py-24 bg-gradient-to-b from-slate-50 to-cyan-50/40 border-b border-slate-200">
+    <section id="pack-recomendado" className="py-16 sm:py-24 bg-linear-to-b from-slate-50 to-cyan-50/40 border-b border-slate-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-3xl border-2 border-cyan-500/80 shadow-xl overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-12 items-center">
@@ -39,7 +39,7 @@ export const PackOfferSection: React.FC<PackOfferSectionProps> = ({
               <img
                 src={packHero.imagen || "/images/pack2.png"}
                 alt="Pack Lumbar Fix Completo"
-                className="w-full max-w-md max-h-[380px] object-contain drop-shadow-xl hover:scale-105 transition-transform duration-300"
+                className="w-full max-w-md max-h-95 object-contain drop-shadow-xl hover:scale-105 transition-transform duration-300"
               />
             </div>
 
@@ -65,7 +65,7 @@ export const PackOfferSection: React.FC<PackOfferSectionProps> = ({
                 {packHero.items.map((item, idx) => (
                   <div key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-800">
                     <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check className="w-3 h-3 stroke-[3]" />
+                      <Check className="w-3 h-3 stroke-3" />
                     </div>
                     <span className="font-medium">{item}</span>
                   </div>

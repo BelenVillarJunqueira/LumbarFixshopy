@@ -2,29 +2,30 @@
   "products": [
     {
       "id": "faja-lumbar",
-      "nombre": "Faja lumbar",
-      "precio": 20000,
+      "nombre": "Lumbar Fix",
+      "precio": 39999,
       "precioAnterior": 35000,
       "stock": 13,
       "img": "/images/fajalumbar.jpg",
       "galeria": [
         "/images/fajalumbar.jpg",
-        "/images/pack2.png",
-        "/images/despues.jpg",
-        "/images/antes.jpg",
-        "/images/rodillera.jpg",
-        "/images/tobillera.jpg",
-        "/images/foamroller.webp"
+        "/uploads/media-1788553123745-ac29z.jpeg",
+        "/uploads/media-1788550922670-6y86p.jpeg",
+        "/uploads/media-1788553130124-fpc8r.webp",
+        "/uploads/media-1788553021021-6055h.jpeg",
+        "/uploads/media-1788553049694-r449i.jpg"
       ],
-      "descripcion": "Faja descompresora vertebral con tracción vertical neumática. Libera la presión sobre discos herniados y nervio ciático de manera inmediata.",
+      "descripcion": "Faja descompresora vertebral con tracción vertical. Libera la presión sobre discos herniados y nervio ciático de manera inmediata.",
       "activo": true,
       "badge": "MÁS VENDIDO",
       "caracteristicas": [
-        "Descompresión vertebral neumática 360°",
-        "Inflador manual ergonómico incluido",
+        "Descompresión vertebral",
         "Extensor de cintura adaptable (70cm - 125cm)",
         "Material respirable hipoalergénico"
-      ]
+      ],
+      "reelUrl": "/uploads/media-1788550804054-l2e07.mp4",
+      "reelTitulo": "Reel Demostrativo: Descompresión Lumbar Fix",
+      "reelActivo": true
     },
     {
       "id": "pack-lumbar-fix",
@@ -89,7 +90,7 @@
       "id": "bundle-1",
       "nombre": "1x Faja Lumbar",
       "subtitulo": "Tratamiento individual",
-      "itemsTexto": "1 Faja Lumbar Fix + Bomba de inflado + Extensor",
+      "itemsTexto": "1 Faja Lumbar Fix ",
       "precio": 20000,
       "precioAnterior": 35000,
       "descuentoTexto": "Ahorrás $15.000",
@@ -103,7 +104,7 @@
       "id": "bundle-2",
       "nombre": "2x Faja Lumbar",
       "subtitulo": "Para vos y tu pareja o familiar",
-      "itemsTexto": "2 Fajas Lumbar Fix + 2 Bombas + 2 Extensores",
+      "itemsTexto": "2 Fajas Lumbar Fix ",
       "precio": 32000,
       "precioAnterior": 70000,
       "descuentoTexto": "¡Ahorrás $38.000! ($16.000 c/u)",
@@ -129,7 +130,7 @@
     }
   ],
   "siteContent": {
-    "announcementBar": "🚚 ENVÍO GRATIS A TODO EL PAÍS · 📦 PAGO CONTRA ENTREGA DISPONIBLE · ⚡ DESPACHO EN 24HS",
+    "announcementBar": "🚚 ENVÍOS  A TODO EL PAÍS · 📦 PAGO CONTRA ENTREGA DISPONIBLE · ⚡ DESPACHO EN 24HS",
     "heroHeadline": "FAJA LUMBAR",
     "heroSubheadline": "Si pasás horas sentado, esto no es opcional. Dolor lumbar, mala postura y fatiga… LUMBAR FIX lo corrige desde el primer uso.",
     "ratingScore": 4.9,
@@ -141,7 +142,7 @@
       "Separás las vértebras y descomprimís los discos sin cirugía ni medicamentos.",
       "Alivio inmediato de la presión en la zona lumbar y del nervio ciático.",
       "Corregís la postura en tiempo real mientras trabajás sentado o manejás.",
-      "Fácil de regular: incluye bomba de inflado manual con válvula de seguridad."
+      "Fácil de regular: bandas adaptables y ajustables."
     ],
     "problema": {
       "badge": "EL PROBLEMA OCULTO",
@@ -187,7 +188,7 @@
       "titulo": "🔥 PACK LUMBAR FIX (RECOMENDADO)",
       "subtitulo": "Recuperación integral para todo el cuerpo y articulaciones",
       "items": [
-        "1x Faja Lumbar Descompresora Lumbar Fix® con bomba y extensor",
+        "1x Faja Lumbar Descompresora Lumbar Fix® con  y extensor",
         "1x Rodillera Anatómica de compresión rotuliana",
         "1x Tobillera de soporte ligamentario",
         "1x Foam Roller de descarga miofascial y estiramiento lumbar"
@@ -203,7 +204,7 @@
       "Mejora la alineación postural y frena la fatiga muscular",
       "Brinda mayor movilidad y libertad para trabajar o caminar",
       "Previene hernias discales, ciática y contracturas por sedentarismo",
-      "Fácil de transportar: liviana, discreta y adaptable con extensor de regalo"
+      "Fácil de transportar: liviana, discreta y adaptable "
     ],
     "comparativa": [
       {
@@ -219,7 +220,7 @@
         "analgesicos": false
       },
       {
-        "caracteristica": "Regulación de tracción con bomba manual",
+        "caracteristica": "Regulación de tracción para la comodidad de cada usuario",
         "lumbarFix": true,
         "fajaTradicional": false,
         "analgesicos": false
@@ -249,7 +250,7 @@
         "autor": "Carlos M.",
         "rating": 5,
         "ciudad": "Córdoba",
-        "comentario": "Trabajo 10 horas programando frente a la computadora. Tenía un dolor lumbar constante que me irradiaba a la pierna izquierda. Con la faja y 20 minutos de inflado al mediodía y a la tarde sentí un alivio que no me daba ningún antiinflamatorio.",
+        "comentario": "Trabajo 10 horas programando frente a la computadora. Tenía un dolor lumbar constante que me irradiaba a la pierna izquierda. Con la faja al mediodía y a la tarde sentí un alivio que no me daba ningún antiinflamatorio.",
         "fecha": "Hace 3 días",
         "verificado": true,
         "foto": "/images/despues.jpg"
@@ -259,7 +260,7 @@
         "autor": "Mariana S.",
         "rating": 5,
         "ciudad": "Rosario",
-        "comentario": "Excelente producto. Al principio dudaba si realmente se sentía la tracción, pero cuando le das aire con la bomba sentís cómo te estira la columna para arriba y te saca todo el peso de encima. Muy recomendable el pack.",
+        "comentario": "Excelente producto. Al principio dudaba si realmente se sentía la tracción, pero cuando la regulas a tu medida sentís cómo te estira la columna para arriba y te saca todo el peso de encima. Muy recomendable el pack.",
         "fecha": "Hace 1 semana",
         "verificado": true
       },
@@ -307,7 +308,7 @@
       {
         "id": "faq-5",
         "pregunta": "¿Cómo se utiliza y cuánto tiempo por día?",
-        "respuesta": "Es muy simple: te colocás la faja desinflada alrededor de la cintura, la ajustás con el velcro, conectás la bomba manual e inflás hasta sentir un estiramiento agradable y firme. Se recomienda usarla de 20 a 40 minutos, 2 o 3 veces por día."
+        "respuesta": "Es muy simple: te colocás la faja alrededor de la cintura, la ajustás con el velcro, y la centras hasta sentir un estiramiento agradable y firme. Se recomienda usarla cuando sientas dolor o incomodidad en la zona lumbar, con actividades de esfuerzo o mala posicion prolongada o mucho tiempo de pie."
       }
     ],
     "contacto": {
@@ -319,17 +320,16 @@
     },
     "garantiaDias": 30,
     "datosBancarios": {
-      "banco": "Mercado Pago / Banco Galicia ",
-      "titular": "Lumbar Fix ",
-      "cuit": "23-37066549-4",
+      "banco": "Mercado Pago / Galicia ",
       "cbu": "0070327530004092450465",
-      "alias": "RBVILLAR3.GAL",
-      "instrucciones": "Realizá la transferencia por el total con el 10% de descuento aplicado y enviá el comprobante junto con tu código de seguimiento por WhatsApp para que despachemos hoy mismo."
+      "cuit": "23-37066549-4",
+      "titular": "Lumbar Fix ",
+      "alias": "RBVILLAR3.GAL"
     },
     "mercadopago": {
       "activo": true,
-      "accessToken": "",
-      "publicKey": ""
+      "accessToken": "APP_USR-8270789566359286-090318-56cd85ccd93782a0f69a171fe7ef9a0f-31478951",
+      "publicKey": "APP_USR-000ffd80-2ba1-4307-b7df-7e7e108a7485"
     }
   },
   "orders": [

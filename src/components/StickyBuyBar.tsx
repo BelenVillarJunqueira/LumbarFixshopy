@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ArrowRight, Flame } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import { Product, BundleOption } from "../types";
 
 interface StickyBuyBarProps {
@@ -14,19 +14,38 @@ export const StickyBuyBar: React.FC<StickyBuyBarProps> = ({
   onDirectBuy
 }) => {
   const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [nearFooter, setNearFooter] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      // Show sticky bar once scrolled down 500px
+      // If user dismissed it manually, do not show
+      if (dismissed) return;
+
+      const footer = document.getElementById("site-footer");
+      if (footer) {
+        const rect = footer.getBoundingClientRect();
+        // Hide well before reaching footer (180px before) so it NEVER covers footer or admin access
+        if (rect.top <= window.innerHeight + 180) {
+          setNearFooter(true);
+          return;
+        } else {
+          setNearFooter(false);
+        }
+      }
+
+      // Show sticky bar once scrolled down 450px
       if (window.scrollY > 450) {
         setVisible(true);
       } else {
         setVisible(false);
       }
     };
-    window.addEventListener("scroll", handleScroll);
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [dismissed]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("es-AR", {
@@ -36,13 +55,16 @@ export const StickyBuyBar: React.FC<StickyBuyBarProps> = ({
     }).format(price);
   };
 
-  if (!visible) return null;
+  if (dismissed || !visible || nearFooter) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-4 shadow-xl transition-all duration-300 transform translate-y-0">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+    <div
+      id="sticky-buy-bar"
+      className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2.5 px-3 sm:px-4 shadow-2xl transition-all duration-300 transform translate-y-0"
+    >
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
         {/* Product preview */}
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-slate-50 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
             <img
               src={selectedBundle.imagen || product.img}
@@ -70,14 +92,24 @@ export const StickyBuyBar: React.FC<StickyBuyBarProps> = ({
           </div>
         </div>
 
-        {/* Action Button */}
-        <button
-          onClick={onDirectBuy}
-          className="px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-md shadow-cyan-500/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer animate-pulse-glow"
-        >
-          <span>COMPRAR AHORA</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+        {/* Action Button & Dismiss */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            id="btn-sticky-comprar"
+            onClick={onDirectBuy}
+            className="px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-slate-950 font-black text-xs sm:text-sm tracking-wide shadow-md shadow-cyan-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>COMPRAR AHORA</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setDismissed(true)}
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Cerrar barra flotante"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -9,9 +9,12 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ siteContent, onOpenAdmin }) => {
   return (
-    <footer className="bg-slate-950 text-white border-t border-slate-800 pt-16 pb-24 sm:pb-16">
+    <footer
+      id="site-footer"
+      className="bg-slate-950 text-white border-t border-slate-800 mt-16 sm:mt-24 pt-12 pb-28 sm:pb-16 relative z-20"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-12 border-b border-slate-800">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-slate-800/80">
           {/* Col 1: Brand & Bio */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -110,21 +113,20 @@ export const Footer: React.FC<FooterProps> = ({ siteContent, onOpenAdmin }) => {
           </div>
         </div>
 
-        {/* Bottom copyright & disclaimer */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© {new Date().getFullYear()} Lumbar Fix®. Todos los derechos reservados.</p>
+        {/* Bottom copyright & disclaimer (Discreet admin trigger) */}
+        <div className="mt-8 pt-6 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <button
+            type="button"
+            onClick={onOpenAdmin}
+            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-cyan-400 transition-colors cursor-pointer text-left group select-none py-1 px-2 -ml-2 rounded-lg hover:bg-slate-900/60"
+            title="Acceso al Panel de Administración"
+          >
+            <span>© {new Date().getFullYear()} Lumbar Fix®. Todos los derechos reservados.</span>
+            <Lock className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400 opacity-60 group-hover:opacity-100 transition-all shrink-0 ml-0.5" />
+          </button>
           <div className="flex items-center gap-4">
             <span className="hover:text-slate-400 cursor-pointer">Términos de Servicio</span>
             <span className="hover:text-slate-400 cursor-pointer">Políticas de Privacidad</span>
-            {/* Acceso discreto para el dueño */}
-            <button
-              onClick={onOpenAdmin}
-              className="text-slate-500 hover:text-cyan-400 transition-colors flex items-center gap-1 cursor-pointer"
-              title="Acceso exclusivo administración"
-            >
-              <Lock className="w-3 h-3" />
-              <span>Acceso Dueño</span>
-            </button>
           </div>
         </div>
       </div>

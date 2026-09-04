@@ -16,7 +16,7 @@ export const ProblemAgitation: React.FC<ProblemAgitationProps> = ({
   return (
     <section id="problema" className="py-16 sm:py-24 bg-slate-950 text-white relative overflow-hidden">
       {/* Subtle background glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-cyan-900/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-150 h-75 bg-cyan-900/20 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Top Badge */}

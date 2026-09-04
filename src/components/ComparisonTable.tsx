@@ -17,11 +17,11 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
     if (typeof val === "boolean") {
       return val ? (
         <div className={`w-6 h-6 rounded-full flex items-center justify-center mx-auto ${isLumbarFix ? "bg-emerald-500 text-white" : "bg-emerald-100 text-emerald-700"}`}>
-          <Check className="w-3.5 h-3.5 stroke-[3]" />
+          <Check className="w-3.5 h-3.5 stroke-3" />
         </div>
       ) : (
         <div className="w-6 h-6 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center mx-auto">
-          <X className="w-3.5 h-3.5 stroke-[3]" />
+          <X className="w-3.5 h-3.5 stroke-3" />
         </div>
       );
     }
@@ -46,7 +46,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
         {/* Table Container */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[600px]">
+            <table className="w-full text-left border-collapse min-w-150">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-100/60 text-xs text-slate-500 font-bold uppercase tracking-wider">
                   <th className="p-4 sm:p-5 w-1/2">Beneficio / Característica</th>

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Star,
   CheckCircle2,
@@ -12,7 +13,15 @@ import {
   Maximize2,
   Sparkles,
   Layers,
-  HeartHandshake
+  HeartHandshake,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Video,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from "lucide-react";
 import { Product, BundleOption, SiteContent } from "../types";
 
@@ -24,6 +33,14 @@ interface ProductHeroProps {
   onAddToCart: (bundle: BundleOption) => void;
 }
 
+interface CarouselItem {
+  id: string;
+  type: "reel" | "image";
+  url: string;
+  title: string;
+  poster?: string;
+}
+
 export const ProductHero: React.FC<ProductHeroProps> = ({
   product,
   bundles,
@@ -31,9 +48,245 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
   onDirectBuy,
   onAddToCart
 }) => {
-  // Gallery states
-  const galleryImages = product.galeria && product.galeria.length > 0 ? product.galeria : [product.img];
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  // Build items array with Reel first if available
+  const carouselItems = useMemo<CarouselItem[]>(() => {
+    const items: CarouselItem[] = [];
+
+    // 1. Reel video item (Appears FIRST if present and active)
+    let effectiveReelUrl = "";
+    if (typeof product?.reelUrl === "string") {
+      effectiveReelUrl = product.reelUrl.trim();
+    } else if (product?.reelUrl && typeof (product.reelUrl as any).url === "string") {
+      effectiveReelUrl = (product.reelUrl as any).url.trim();
+    }
+
+    const isReelEnabled = product?.reelActivo !== false && effectiveReelUrl.length > 0;
+    if (isReelEnabled) {
+      items.push({
+        id: "reel-main-video-item",
+        type: "reel",
+        url: effectiveReelUrl,
+        title: (typeof product?.reelTitulo === "string" && product.reelTitulo.trim())
+          ? product.reelTitulo.trim()
+          : "Reel Demostrativo: Descompresión Lumbar Fix",
+        poster: (typeof product?.img === "string" && product.img.trim())
+          ? product.img.trim()
+          : "/images/fajalumbar.jpg"
+      });
+    }
+
+    // 2. Images gallery - thoroughly normalize any format
+    const rawList: any[] = Array.isArray(product?.galeria) && product.galeria.length > 0
+      ? product.galeria
+      : [product?.img || "/images/fajalumbar.jpg"];
+
+    const cleanImages: string[] = [];
+    rawList.forEach((item) => {
+      let url = "";
+      if (typeof item === "string") {
+        url = item.trim();
+      } else if (item && typeof item === "object") {
+        url = (item.url || item.src || item.img || "").toString().trim();
+      }
+      if (url && !cleanImages.includes(url)) {
+        cleanImages.push(url);
+      }
+    });
+
+    if (cleanImages.length === 0) {
+      cleanImages.push(
+        typeof product?.img === "string" && product.img.trim()
+          ? product.img.trim()
+          : "/images/fajalumbar.jpg"
+      );
+    }
+
+    cleanImages.forEach((imgUrl, idx) => {
+      items.push({
+        id: `img-item-${idx}`,
+        type: "image",
+        url: imgUrl,
+        title: `Vista ${idx + 1} de ${product?.nombre || "Lumbar Fix"}`
+      });
+    });
+
+    return items;
+  }, [
+    product?.galeria,
+    product?.reelUrl,
+    product?.reelActivo,
+    product?.reelTitulo,
+    product?.img,
+    product?.nombre
+  ]);
+
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+  const [videoError, setVideoError] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const thumbnailContainerRef = useRef<HTMLDivElement>(null);
+
+  // Safe clamped index to completely prevent out-of-bounds errors
+  const safeActiveIndex = activeIndex >= 0 && activeIndex < carouselItems.length ? activeIndex : 0;
+  const currentItem = carouselItems[safeActiveIndex] || carouselItems[0] || {
+    id: "fallback-item",
+    type: "image" as const,
+    url: "/images/fajalumbar.jpg",
+    title: product?.nombre || "Lumbar Fix"
+  };
+
+  useEffect(() => {
+    setVideoError(false);
+  }, [carouselItems]);
+
+  const handlePrev = (e?: React.MouseEvent) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (carouselItems.length <= 1) return;
+    setActiveIndex((prev) => (prev > 0 ? prev - 1 : carouselItems.length - 1));
+  };
+
+  const handleNext = (e?: React.MouseEvent) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (carouselItems.length <= 1) return;
+    setActiveIndex((prev) => (prev < carouselItems.length - 1 ? prev + 1 : 0));
+  };
+
+  const scrollThumbnails = (direction: "left" | "right") => {
+    try {
+      if (thumbnailContainerRef.current) {
+        const scrollAmount = direction === "left" ? -200 : 200;
+        thumbnailContainerRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+      }
+    } catch {}
+  };
+
+  // Safe thumbnail container scroll without DOM node querying
+  useEffect(() => {
+    try {
+      if (thumbnailContainerRef.current) {
+        const targetScroll = Math.max(0, safeActiveIndex * 82 - 120);
+        thumbnailContainerRef.current.scrollTo({ left: targetScroll, behavior: "smooth" });
+      }
+    } catch {}
+  }, [safeActiveIndex]);
+
+  // Try auto-play video safely if active item is reel, and pause when switching away
+  useEffect(() => {
+    try {
+      if (currentItem.type === "reel" && videoRef.current) {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            if (videoRef.current) {
+              videoRef.current.muted = true;
+              setIsMuted(true);
+              videoRef.current.play().catch(() => {});
+            }
+          });
+        }
+      } else if (currentItem.type !== "reel" && videoRef.current) {
+        videoRef.current.pause();
+      }
+    } catch {}
+  }, [safeActiveIndex, currentItem.type]);
+
+  // Clean up video on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        if (videoRef.current) {
+          videoRef.current.pause();
+        }
+      } catch {}
+    };
+  }, []);
+
+  // Touch swipe support for mobile/tablet gallery
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.targetTouches.length > 0) {
+      setTouchStartX(e.targetTouches[0].clientX);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    if (e.changedTouches.length > 0) {
+      const touchEndX = e.changedTouches[0].clientX;
+      const diff = touchStartX - touchEndX;
+      if (diff > 45) {
+        handleNext();
+      } else if (diff < -45) {
+        handlePrev();
+      }
+    }
+    setTouchStartX(null);
+  };
+
+  const togglePlayPause = (e?: React.MouseEvent) => {
+    e?.stopPropagation?.();
+    if (!videoRef.current) return;
+    try {
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(() => {});
+        setIsPlaying(true);
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    } catch {}
+  };
+
+  const toggleMute = (e?: React.MouseEvent) => {
+    e?.stopPropagation?.();
+    if (!videoRef.current) return;
+    try {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+    } catch {}
+  };
+
+  // Fullscreen Lightbox handlers
+  const openLightbox = (idx?: number) => {
+    setLightboxIndex(typeof idx === "number" ? idx : safeActiveIndex);
+    setIsLightboxOpen(true);
+  };
+
+  const handleLightboxPrev = (e?: React.MouseEvent) => {
+    e?.stopPropagation?.();
+    if (carouselItems.length <= 1) return;
+    setLightboxIndex((prev) => (prev > 0 ? prev - 1 : carouselItems.length - 1));
+  };
+
+  const handleLightboxNext = (e?: React.MouseEvent) => {
+    e?.stopPropagation?.();
+    if (carouselItems.length <= 1) return;
+    setLightboxIndex((prev) => (prev < carouselItems.length - 1 ? prev + 1 : 0));
+  };
+
+  // Keyboard navigation for Lightbox
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsLightboxOpen(false);
+      } else if (e.key === "ArrowRight") {
+        setLightboxIndex((prev) => (prev < carouselItems.length - 1 ? prev + 1 : 0));
+      } else if (e.key === "ArrowLeft") {
+        setLightboxIndex((prev) => (prev > 0 ? prev - 1 : carouselItems.length - 1));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLightboxOpen, carouselItems.length]);
+
   const [selectedBundleId, setSelectedBundleId] = useState<string>(bundles[1]?.id || bundles[0]?.id || "bundle-1");
   const [openAccordion, setOpenAccordion] = useState<string | null>("descripcion");
 
@@ -66,61 +319,383 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
     setOpenAccordion(openAccordion === id ? null : id);
   };
 
+  const safeLightboxIndex = lightboxIndex >= 0 && lightboxIndex < carouselItems.length ? lightboxIndex : 0;
+  const currentLightboxItem = carouselItems[safeLightboxIndex] || currentItem;
+
   return (
     <section id="producto" className="py-6 sm:py-10 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* ========================================================= */}
           {/* LEFT: MEDIA GALLERY (Shopify Shrine / Lymphori style) */}
+          {/* FIXED MOBILE OVERLAP: lg:sticky so it only sticks on desktop, never on mobile/tablet */}
           {/* ========================================================= */}
-          <div className="lg:col-span-6 sticky top-28 space-y-4">
-            {/* Main Image Frame */}
-            <div className="relative rounded-2xl overflow-hidden bg-slate-50 border border-slate-200/80 shadow-sm aspect-square flex items-center justify-center group">
+          <div className="lg:col-span-6 lg:sticky lg:top-28 relative space-y-4">
+            {/* Main Media Frame */}
+            <div 
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 shadow-sm aspect-square flex items-center justify-center group select-none"
+            >
               {/* Badges */}
-              <div className="absolute top-4 left-4 z-10 flex flex-col gap-1.5">
-                <span className="bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md flex items-center gap-1">
-                  <Flame className="w-3.5 h-3.5 fill-current" /> OFERTA LIMITADA
-                </span>
+              <div className="absolute top-4 left-4 z-20 flex flex-col gap-1.5 pointer-events-none">
+                {currentItem?.type === "reel" ? (
+                  <span key="badge-reel" className="bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md flex items-center gap-1 animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-white inline-block"></span> Aprovechalo AHORA
+                  </span>
+                ) : (
+                  <span key="badge-offer" className="bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md flex items-center gap-1">
+                    <Flame className="w-3.5 h-3.5 fill-current" /> OFERTA LIMITADA
+                  </span>
+                )}
                 <span className="bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md flex items-center gap-1">
-                  <Truck className="w-3.5 h-3.5" /> ENVÍO GRATIS
+                  <Truck className="w-3.5 h-3.5" /> ENVÍO A TODO EL PAÍS
                 </span>
               </div>
 
-              {/* Main Image */}
-              <img
-                src={galleryImages[activeImageIndex] || product.img}
-                alt={product.nombre}
-                className="w-full h-full object-contain p-4 transition-all duration-300 group-hover:scale-105"
-              />
-
-              {/* Lightbox / Zoom hint */}
-              <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-xs text-slate-700 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-xs flex items-center gap-1.5 opacity-90">
-                <Maximize2 className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-medium">Toque para ver</span>
+              {/* Item Counter Badge */}
+              <div className="absolute top-4 right-4 z-20 pointer-events-none">
+                <span className="bg-black/60 backdrop-blur-xs text-white text-[11px] font-bold px-2.5 py-1 rounded-full border border-white/20 shadow-xs flex items-center gap-1">
+                  <span>{`${safeActiveIndex + 1} / ${carouselItems.length}`}</span>
+                </span>
               </div>
-            </div>
 
-            {/* Thumbnail Navigation */}
-            {galleryImages.length > 1 && (
-              <div className="flex gap-2.5 sm:gap-3 overflow-x-auto pb-2 scrollbar-none">
-                {galleryImages.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveImageIndex(idx)}
-                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 bg-slate-50 ${
-                      activeImageIndex === idx
-                        ? "border-cyan-600 ring-2 ring-cyan-600/30 scale-102"
-                        : "border-slate-200 hover:border-slate-400 opacity-80 hover:opacity-100"
-                    }`}
+              {/* Main Media Item Content Container */}
+              <div className="w-full h-full flex items-center justify-center">
+                {currentItem?.type === "reel" ? (
+                  <div key="main-media-reel-frame" className="relative w-full h-full bg-black flex items-center justify-center">
+                    {currentItem.url.includes("youtube.com") || currentItem.url.includes("youtu.be") ? (
+                      <iframe
+                        src={currentItem.url.replace("watch?v=", "embed/") + "?autoplay=1&mute=1&loop=1"}
+                        title="Reel Demostrativo"
+                        className="w-full h-full object-cover"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <div className="relative w-full h-full flex items-center justify-center">
+                        <video
+                          ref={videoRef}
+                          src={currentItem.url}
+                          poster={currentItem.poster}
+                          autoPlay
+                          muted={isMuted}
+                          loop
+                          playsInline
+                          preload="auto"
+                          onPlay={() => setIsPlaying(true)}
+                          onPause={() => setIsPlaying(false)}
+                          onError={() => setVideoError(true)}
+                          onClick={togglePlayPause}
+                          className="w-full h-full object-contain cursor-pointer"
+                        />
+                        {videoError && (
+                          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-6 text-center text-white z-10">
+                            <Video className="w-10 h-10 text-purple-400 mb-2 opacity-80" />
+                            <p className="text-xs font-bold mb-1">Video Demostrativo Lumbar Fix</p>
+                            <p className="text-[11px] text-slate-300 max-w-xs mb-3">
+                              Este archivo de video no puede reproducirse directamente en el navegador. Podés actualizar el video o usar el Reel oficial en MP4 desde el panel administrador.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={handleNext}
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold text-white transition-all cursor-pointer"
+                            >
+                              Ver Fotos del Producto →
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Video Controls Overlay */}
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between z-20 pointer-events-auto">
+                      <button
+                        type="button"
+                        onClick={togglePlayPause}
+                        className="p-2.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white transition-all shadow-md active:scale-95 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+                      >
+                        {isPlaying ? <Pause className="w-4 h-4 fill-white" /> : <Play className="w-4 h-4 fill-white ml-0.5" />}
+                        <span className="text-[11px]">{isPlaying ? "Pausar" : "Reproducir"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={toggleMute}
+                        className="p-2.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white transition-all shadow-md active:scale-95 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+                      >
+                        {isMuted ? (
+                          <>
+                            <VolumeX className="w-4 h-4 text-rose-400" />
+                            <span className="text-[11px]">Activar Audio</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-4 h-4 text-emerald-400" />
+                            <span className="text-[11px]">Silenciar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key="main-media-image-frame"
+                    onClick={() => openLightbox(safeActiveIndex)}
+                    className="relative w-full h-full bg-slate-50 flex items-center justify-center cursor-zoom-in group"
+                    title="Hacé clic para ampliar y ver todas las fotos una por una"
                   >
                     <img
-                      src={img}
-                      alt={`Vista ${idx + 1}`}
-                      className="w-full h-full object-contain p-1"
+                      key={`gallery-img-${safeActiveIndex}`}
+                      src={currentItem?.url || product?.img || "/images/fajalumbar.jpg"}
+                      alt={currentItem?.title || product?.nombre || "Foto del producto"}
+                      className="w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/images/fajalumbar.jpg";
+                      }}
                     />
-                  </button>
-                ))}
+
+                    {/* Lightbox / Zoom hint */}
+                    <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-xs text-slate-700 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-xs flex items-center gap-1.5 opacity-90 transition-transform group-hover:scale-105 pointer-events-none">
+                      <Maximize2 className="w-3.5 h-3.5 text-cyan-700 shrink-0" />
+                      <span className="text-[11px] font-bold text-slate-800">
+                        {`Ampliar foto (${safeActiveIndex + 1}/${carouselItems.length})`}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Previous & Next Floating Chevrons on Main Media */}
+              {carouselItems.length > 1 && (
+                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-between p-3">
+                  <button
+                    type="button"
+                    onClick={handlePrev}
+                    aria-label="Elemento anterior del carrusel"
+                    className="pointer-events-auto w-10 h-10 rounded-full bg-white/95 hover:bg-white text-slate-900 shadow-lg flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 border border-slate-200"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-slate-900" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    aria-label="Siguiente elemento del carrusel"
+                    className="pointer-events-auto ml-auto w-10 h-10 rounded-full bg-white/95 hover:bg-white text-slate-900 shadow-lg flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 border border-slate-200"
+                  >
+                    <ChevronRight className="w-5 h-5 text-slate-900" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Thumbnail Navigation with Scroll Arrows (Never cuts off) */}
+            {carouselItems.length > 1 && (
+              <div className="relative flex items-center group/thumbs">
+                <button
+                  type="button"
+                  onClick={() => scrollThumbnails("left")}
+                  aria-label="Desplazar galería a la izquierda"
+                  className="hidden sm:flex absolute -left-3 z-10 w-8 h-8 rounded-full bg-white/95 hover:bg-white text-slate-800 shadow-md border border-slate-200 items-center justify-center cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <div
+                  ref={thumbnailContainerRef}
+                  className="flex gap-2.5 sm:gap-3 overflow-x-auto pb-2 pt-1 w-full scroll-smooth touch-pan-x scrollbar-thin px-1"
+                >
+                  {carouselItems.map((item, idx) => {
+                    const isActive = safeActiveIndex === idx;
+                    return (
+                      <button
+                        key={`thumb-btn-${idx}`}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setActiveIndex(idx);
+                        }}
+                        className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                          isActive
+                            ? "border-cyan-600 ring-2 ring-cyan-600/30 scale-102 shadow-md"
+                            : "border-slate-200 hover:border-slate-400 opacity-80 hover:opacity-100"
+                        } ${item.type === "reel" ? "bg-slate-900" : "bg-slate-50"}`}
+                        title={item.title}
+                      >
+                        {item.type === "reel" ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center relative p-1">
+                            <img
+                              src={item.poster || product?.img || "/images/fajalumbar.jpg"}
+                              alt="Reel poster"
+                              className="w-full h-full object-cover rounded-lg opacity-60"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "/images/fajalumbar.jpg";
+                              }}
+                            />
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
+                              <div className="w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md">
+                                <Play className="w-3 h-3 fill-white ml-0.5" />
+                              </div>
+                              <span className="text-[9px] font-black text-white mt-1 uppercase tracking-wider bg-rose-700/90 px-1 py-0.2 rounded">
+                                REEL
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <img
+                            src={item.url}
+                            alt={item.title}
+                            className="w-full h-full object-contain p-1"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "/images/fajalumbar.jpg";
+                            }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => scrollThumbnails("right")}
+                  aria-label="Desplazar galería a la derecha"
+                  className="hidden sm:flex absolute -right-3 z-10 w-8 h-8 rounded-full bg-white/95 hover:bg-white text-slate-800 shadow-md border border-slate-200 items-center justify-center cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Fullscreen Lightbox Modal (Allows viewing images one by one in high res via Portal) */}
+            {isLightboxOpen && typeof document !== "undefined" && createPortal(
+              <div 
+                className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6"
+                onClick={() => setIsLightboxOpen(false)}
+              >
+                {/* Lightbox Header */}
+                <div 
+                  className="w-full max-w-5xl flex items-center justify-between text-white z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 rounded-full bg-white/20 text-xs font-bold font-mono">
+                      {`${safeLightboxIndex + 1} / ${carouselItems.length}`}
+                    </span>
+                    <span className="text-sm font-semibold truncate hidden sm:inline">
+                      {currentLightboxItem.title}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsLightboxOpen(false)}
+                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-colors flex items-center gap-1.5 text-xs font-bold"
+                  >
+                    <span className="hidden sm:inline">Cerrar (ESC)</span>
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Lightbox Center Media */}
+                <div 
+                  className="relative flex-1 w-full max-w-4xl flex items-center justify-center my-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {carouselItems.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleLightboxPrev}
+                      className="absolute left-2 sm:left-4 z-20 p-3 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 cursor-pointer transition-all hover:scale-110 active:scale-95 shadow-xl"
+                      title="Foto anterior (←)"
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                  )}
+
+                  <div className="w-full h-full max-h-[75vh] flex items-center justify-center">
+                    {currentLightboxItem.type === "reel" ? (
+                      <div key="lightbox-reel-view" className="w-full h-full flex items-center justify-center">
+                        {currentLightboxItem.url.includes("youtube.com") || currentLightboxItem.url.includes("youtu.be") ? (
+                          <iframe
+                            src={currentLightboxItem.url.replace("watch?v=", "embed/") + "?autoplay=1"}
+                            title="Reel Demostrativo"
+                            className="w-full max-w-md aspect-9/16 rounded-2xl shadow-2xl"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <video
+                            src={currentLightboxItem.url}
+                            autoPlay
+                            controls
+                            playsInline
+                            className="w-full max-w-md max-h-[75vh] object-contain rounded-2xl shadow-2xl"
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <div key="lightbox-img-view" className="w-full h-full flex items-center justify-center">
+                        <img
+                          key={`lightbox-img-${safeLightboxIndex}`}
+                          src={currentLightboxItem.url || "/images/fajalumbar.jpg"}
+                          alt={currentLightboxItem.title}
+                          className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-2xl transition-all duration-200"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/images/fajalumbar.jpg";
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {carouselItems.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleLightboxNext}
+                      className="absolute right-2 sm:right-4 z-20 p-3 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 cursor-pointer transition-all hover:scale-110 active:scale-95 shadow-xl"
+                      title="Siguiente foto (→)"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Lightbox Bottom Thumbnails Strip */}
+                <div 
+                  className="w-full max-w-4xl flex items-center justify-center gap-2 overflow-x-auto py-2 z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {carouselItems.map((item, idx) => (
+                    <button
+                      key={`lightbox-thumb-${idx}`}
+                      type="button"
+                      onClick={() => setLightboxIndex(idx)}
+                      className={`w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                        safeLightboxIndex === idx
+                          ? "border-cyan-400 ring-2 ring-cyan-400/40 scale-105"
+                          : "border-white/20 opacity-50 hover:opacity-100"
+                      } bg-slate-900`}
+                    >
+                      {item.type === "reel" ? (
+                        <div className="w-full h-full flex items-center justify-center bg-rose-900/60 text-white font-bold text-[9px]">
+                          REEL
+                        </div>
+                      ) : (
+                        <img
+                          src={item.url}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/images/fajalumbar.jpg";
+                          }}
+                        />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>,
+              document.body
             )}
 
             {/* Micro Benefits Banner Under Gallery */}
@@ -128,12 +703,12 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
               <div className="text-center p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="block text-base">👌</span>
                 <span className="text-[11px] font-bold text-slate-800 block">Talle Universal</span>
-                <span className="text-[10px] text-slate-500">Con extensor gratis</span>
+                <span className="text-[10px] text-slate-500">Material premium</span>
               </div>
               <div className="text-center p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="block text-base">💨</span>
-                <span className="text-[11px] font-bold text-slate-800 block">Bomba Manual</span>
-                <span className="text-[10px] text-slate-500">Tracción regulable</span>
+                <span className="text-[11px] font-bold text-slate-800 block">Adaptable a varios talles</span>
+                <span className="text-[10px] text-slate-500">Bandas regulables</span>
               </div>
               <div className="text-center p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="block text-base">🛡️</span>
@@ -207,7 +782,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
               </div>
 
               <p className="text-[11px] text-rose-800/90 leading-tight">
-                Cuando se agota esta tanda, <strong>el extensor gratis y el descuento del 40% dejan de estar</strong> y volvés a la lista de espera normal.
+                Cuando se agota esta tanda, <strong> el descuento del 40% deja de estar</strong> y volvés a la lista de espera normal.
               </p>
             </div>
 
@@ -316,7 +891,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-600 font-medium">
                 <div className="flex items-center gap-1.5">
                   <Truck className="w-4 h-4 text-cyan-600 shrink-0" />
-                  <span>Envío Gratis</span>
+                  <span>Envío a todo el país</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-cyan-600 shrink-0" />
@@ -366,7 +941,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                 {openAccordion === "descripcion" && (
                   <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2">
                     <p>
-                      La faja <strong>Lumbar Fix®</strong> utiliza tecnología de tracción neumática vertical. Al inflarse con la bomba manual, las cámaras internas se expanden verticalmente, transfiriendo el peso de la parte superior del cuerpo hacia la pelvis.
+                      La faja <strong>Lumbar Fix®</strong> está diseñada para brindar soporte y estabilidad en la zona lumbar. Su sistema de ajuste permite adaptarla cómodamente al cuerpo, proporcionando una sensación de sujeción y mayor comodidad durante las actividades diarias.
                     </p>
                     <p>
                       Este estiramiento controlado abre el espacio entre las vértebras lumbares (L1 a L5), creando una presión negativa que alivia la compresión sobre los discos herniados y libera los nervios pinzados, permitiendo el retorno de nutrientes y agua a los tejidos.
@@ -394,10 +969,10 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                 {openAccordion === "uso" && (
                   <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2">
                     <ol className="list-decimal pl-5 space-y-1.5">
-                      <li><strong>Colocá</strong> la faja desinflada a la altura de la cintura (entre la última costilla y la pelvis).</li>
-                      <li><strong>Ajustá</strong> el velcro de manera firme pero cómoda (usá el extensor si tu cintura supera los 95cm).</li>
-                      <li><strong>Conectá</strong> la boquilla de la bomba manual e inflá suavemente hasta sentir una tracción placentera y descompresora.</li>
-                      <li><strong>Utilizala</strong> durante 20 a 40 minutos mientras trabajás, manejás o descansás, 2 o 3 veces al día.</li>
+                      <li><strong>Colocá</strong> la faja alrededor de tu zona lumbar, asegurándote de que quede correctamente centrada y cubra la parte baja de la espalda.</li>
+                      <li><strong>Ajustá</strong> las bandas y el velcro de manera firme pero cómoda, logrando una buena sensación de sujeción sin ejercer una presión excesiva.</li>
+                      <li><strong>Utilizala</strong> durante actividades que requieran esfuerzo físico, muchas horas sentado, de pie o movimientos repetitivos para brindar mayor sensación de soporte.</li>
+                      <li><strong>Usala</strong> durante tus actividades diarias, trabajo, caminatas o momentos de descanso, ajustando siempre la presión según tu comodidad y necesidad.</li>
                     </ol>
                   </div>
                 )}
@@ -422,9 +997,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                 {openAccordion === "caja" && (
                   <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>1x Faja Descompresora Lumbar Fix® con cámaras de tracción vertical.</li>
-                      <li>1x Bomba de inflado manual con válvula de liberación rápida.</li>
-                      <li>1x Cinturón extensor de velcro de REGALO (amplía hasta 125cm).</li>
+                      <li>1x Faja Descompresora Lumbar Fix®.</li>
                       <li>1x Manual ilustrado de uso y recomendaciones en español.</li>
                       <li><em>(Si elegís el Pack Completo: incluye además Rodillera + Tobillera + Foam Roller).</em></li>
                     </ul>

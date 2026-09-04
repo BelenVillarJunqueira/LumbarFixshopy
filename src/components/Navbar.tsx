@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShoppingBag, ShieldCheck, Truck, Menu, X, ChevronRight, MessageCircle } from "lucide-react";
+import { ShoppingBag, ShieldCheck, Truck, Menu, X, ChevronRight, MessageCircle, Lock } from "lucide-react";
 import { SiteContent } from "../types";
 
 interface NavbarProps {
@@ -12,6 +12,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   cartCount,
   onOpenCart,
+  onOpenAdmin,
   siteContent
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -30,11 +31,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             {siteContent.announcementBar}
           </div>
 
-          <div className="hidden md:flex items-center gap-4 text-xs text-slate-300 shrink-0">
-            <span className="flex items-center gap-1.5">
+          <div className="flex items-center gap-3 sm:gap-4 text-xs text-slate-300 shrink-0">
+            <span className="hidden md:flex items-center gap-1.5">
               <Truck className="w-3.5 h-3.5 text-cyan-400" /> Despacho 24hs
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="hidden md:flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> Garantía 30 días
             </span>
           </div>

@@ -343,7 +343,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="bg-white/80 p-2.5 rounded-xl border border-purple-100 flex items-center justify-between">
                     <div>
                       <span className="text-[10px] uppercase font-bold text-purple-600 block">CBU / CVU</span>
-                      <span className="font-mono font-bold text-slate-900 text-[11px] sm:text-xs truncate max-w-[140px] sm:max-w-[180px] block">
+                      <span className="font-mono font-bold text-slate-900 text-[11px] sm:text-xs truncate max-w-35 sm:max-w-45 block">
                         {datosBancarios.cbu}
                       </span>
                     </div>
@@ -533,7 +533,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
 
               <div className="sm:col-span-2">
-                <label className="text-[11px] font-semibold text-slate-600">Entre Calles o Referencias para el repartidor</label>
                 <input
                   id="entreCalles"
                   value={formData.entreCalles}

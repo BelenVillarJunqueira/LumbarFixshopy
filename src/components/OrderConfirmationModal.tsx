@@ -67,7 +67,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
 
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-500 font-medium">Dirección de Entrega:</span>
-            <span className="font-medium text-slate-800 text-right truncate max-w-[200px]">
+            <span className="font-medium text-slate-800 text-right truncate max-w-50">
               {order.cliente.calle} {order.cliente.altura}, {order.cliente.ciudad}
             </span>
           </div>
