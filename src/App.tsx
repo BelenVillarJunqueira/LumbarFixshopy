@@ -110,10 +110,10 @@ export default function App() {
       }
 
       const [prodsRes, bundlesRes, contentRes, ordersRes] = await Promise.all([
-        fetch("/api/products"),
-        fetch("/api/bundles"),
-        fetch("/api/site-content"),
-        fetch("/api/orders", { headers })
+        fetch("${API_URL}/api/products"),
+        fetch("${API_URL}/api/bundles"),
+        fetch("${API_URL}/api/site-content"),
+        fetch("${API_URL}/api/orders", { headers })
       ]);
 
       const [prodsData, bundlesData, contentData, ordersData] = await Promise.all([
