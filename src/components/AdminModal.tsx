@@ -34,9 +34,11 @@ import {
   Truck,
   Flame,
   Check,
-  Upload
+  Upload,
+  Link2
 } from "lucide-react";
 import { Product, SiteContent, Order, BundleOption } from "../types";
+import { API_URL, apiUrl } from "../apiConfig";
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -182,7 +184,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload-file", {
+      const res = await fetch(`${API_URL}/api/upload-file`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -192,7 +194,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
       const data = await res.json().catch(() => null);
       if (res.ok && data && data.success && data.url) {
-        onSuccess(data.url);
+        const finalUrl = data.url.startsWith("/uploads/") && API_URL ? `${API_URL}${data.url}` : data.url;
+        onSuccess(finalUrl);
         setUploadingStatus(null);
         setSaveBannerMsg(`¡"${file.name}" subido con éxito al servidor! Listo para guardar.`);
         return;
@@ -206,7 +209,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
     // 2. Secondary: Raw binary stream upload
     try {
-      const res = await fetch(`/api/upload-raw?filename=${encodeURIComponent(file.name)}`, {
+      const res = await fetch(`${API_URL}/api/upload-raw?filename=${encodeURIComponent(file.name)}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -218,7 +221,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
       const data = await res.json().catch(() => null);
       if (res.ok && data && data.success && data.url) {
-        onSuccess(data.url);
+        const finalUrl = data.url.startsWith("/uploads/") && API_URL ? `${API_URL}${data.url}` : data.url;
+        onSuccess(finalUrl);
         setUploadingStatus(null);
         setSaveBannerMsg(`¡"${file.name}" subido con éxito al servidor! Listo para guardar.`);
         return;
@@ -236,7 +240,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         reader.readAsDataURL(file);
       });
 
-      const res = await fetch("/api/upload", {
+      const res = await fetch(`${API_URL}/api/upload`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -251,17 +255,34 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
       const data = await res.json().catch(() => null);
       if (res.ok && data && data.success && data.url) {
-        onSuccess(data.url);
+        const finalUrl = data.url.startsWith("/uploads/") && API_URL ? `${API_URL}${data.url}` : data.url;
+        onSuccess(finalUrl);
         setUploadingStatus(null);
         setSaveBannerMsg(`¡"${file.name}" subido con éxito al servidor! Listo para guardar.`);
         return;
       } else {
         throw new Error(data?.error || "Error al procesar archivo en el servidor");
       }
-    } catch (err: any) {
-      console.error("Upload error:", err);
-      alert(`No se pudo subir "${file.name}": ${err?.message || "Error del servidor"}`);
-      setUploadingStatus(null);
+    } catch (serverErr) {
+      console.warn("Server upload failed or backend not reachable, using local file reader:", serverErr);
+      // 4. Resilient Fallback: If backend is 404 or sleeping on Render, load image as dataUrl
+      // so the user is NEVER blocked from uploading pictures from their PC
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        onSuccess(dataUrl);
+        setUploadingStatus(null);
+        setSaveBannerMsg(`¡"${file.name}" cargada con éxito! Podés presionar "Guardar Cambios".`);
+        return;
+      } catch (fallbackErr: any) {
+        console.error("Local file read error:", fallbackErr);
+        alert(`No se pudo cargar "${file.name}": ${fallbackErr?.message || "Error al leer archivo"}`);
+        setUploadingStatus(null);
+      }
     }
   };
 
@@ -275,7 +296,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       const formData = new FormData();
       files.forEach((f) => formData.append("files", f));
 
-      const res = await fetch("/api/upload-files", {
+      const res = await fetch(`${API_URL}/api/upload-files`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -284,7 +305,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       });
       const data = await res.json().catch(() => null);
       if (res.ok && data && data.success && Array.isArray(data.urls) && data.urls.length > 0) {
-        newUrls.push(...data.urls);
+        const formattedUrls = data.urls.map((u: string) =>
+          u.startsWith("/uploads/") && API_URL ? `${API_URL}${u}` : u
+        );
+        newUrls.push(...formattedUrls);
       }
     } catch (batchErr) {
       console.warn("Batch upload failed, uploading individually:", batchErr);
@@ -300,7 +324,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         try {
           const formData = new FormData();
           formData.append("file", file);
-          const res = await fetch("/api/upload-file", {
+          const res = await fetch(`${API_URL}/api/upload-file`, {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${token}`
@@ -309,7 +333,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           });
           const data = await res.json().catch(() => null);
           if (res.ok && data && data.success && data.url) {
-            uploadedUrl = data.url;
+            uploadedUrl = data.url.startsWith("/uploads/") && API_URL ? `${API_URL}${data.url}` : data.url;
           }
         } catch {}
 
@@ -321,7 +345,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               reader.onerror = reject;
               reader.readAsDataURL(file);
             });
-            const res = await fetch("/api/upload", {
+            const res = await fetch(`${API_URL}/api/upload`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -331,8 +355,21 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             });
             const data = await res.json().catch(() => null);
             if (res.ok && data && data.success && data.url) {
-              uploadedUrl = data.url;
+              uploadedUrl = data.url.startsWith("/uploads/") && API_URL ? `${API_URL}${data.url}` : data.url;
             }
+          } catch {}
+        }
+
+        // 3. Resilient fallback: read file locally as dataUrl if server returned 404 or offline
+        if (!uploadedUrl) {
+          try {
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            uploadedUrl = dataUrl;
           } catch {}
         }
 
@@ -553,7 +590,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setChangingPass(true);
     try {
       const token = adminToken || localStorage.getItem("lumbarfix_admin_token") || "";
-      const res = await fetch("/api/admin/change-credentials", {
+      const res = await fetch(`${API_URL}/api/admin/change-credentials`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1177,7 +1214,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               #{idx + 1}
                             </span>
                             <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-55">
+                              <span className="font-bold text-slate-900 block truncate max-w-[220px]">
                                 {item.nombre}
                               </span>
                               <span className="text-[11px] text-slate-500">
@@ -1405,7 +1442,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         onChange={(e) => setProdForm({ ...prodForm, reelActivo: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5fter:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
                     </label>
                   </div>
 
@@ -1465,7 +1502,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <span className="font-bold flex items-center gap-1.5 text-purple-300">
                               <Play className="w-3.5 h-3.5 fill-current" /> Vista previa del Reel:
                             </span>
-                            <span className="text-slate-400 text-[10px] font-mono truncate max-w-55">
+                            <span className="text-slate-400 text-[10px] font-mono truncate max-w-[220px]">
                               {prodForm.reelUrl}
                             </span>
                           </div>
@@ -1668,7 +1705,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                   {/* Add Image Form with PC Upload as Primary */}
                   <div className="pt-3 border-t border-slate-200 space-y-3">
-                    <div className="p-3.5 bg-linear-to-r from-cyan-50 to-teal-50 rounded-xl border border-cyan-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="p-3.5 bg-gradient-to-r from-cyan-50 to-teal-50 rounded-xl border border-cyan-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                           <Upload className="w-4 h-4" />
