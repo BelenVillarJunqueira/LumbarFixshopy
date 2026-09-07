@@ -120,6 +120,7 @@ export interface SiteContent {
     activo: boolean;
     accessToken?: string;
     publicKey?: string;
+    linkPago?: string;
   };
   garantiaDias: number;
 }

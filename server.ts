@@ -37,12 +37,11 @@ const defaultInitialData = {
       reelTitulo: "Reel Demostrativo: Descompresión Lumbar Fix",
       reelActivo: true,
       descripcion:
-        "Faja descompresora vertebral con tracción vertical neumática. Libera la presión sobre discos herniados y nervio ciático de manera inmediata.",
+        "Faja descompresora vertebral. Libera la presión sobre discos herniados y nervio ciático de manera inmediata.",
       activo: true,
       badge: "MÁS VENDIDO",
       caracteristicas: [
         "Descompresión vertebral neumática 360°",
-        "Inflador manual ergonómico incluido",
         "Extensor de cintura adaptable (70cm - 125cm)",
         "Material respirable hipoalergénico"
       ]
@@ -151,7 +150,7 @@ const defaultInitialData = {
     }
   ],
   siteContent: {
-    announcementBar: "🚚 ENVÍO GRATIS A TODO EL PAÍS · 📦 PAGO CONTRA ENTREGA DISPONIBLE · ⚡ DESPACHO EN 24HS",
+    announcementBar: "🚚 ENVÍOS TODO EL PAÍS · 📦 PAGO CONTRA ENTREGA DISPONIBLE · ⚡ DESPACHO EN 24HS",
     heroHeadline: "FAJA LUMBAR",
     heroSubheadline: "Si pasás horas sentado, esto no es opcional. Dolor lumbar, mala postura y fatiga… LUMBAR FIX lo corrige desde el primer uso.",
     ratingScore: 4.9,
@@ -185,16 +184,16 @@ const defaultInitialData = {
     solucion: {
       badge: "LA TECNOLOGÍA",
       titulo: "LUMBAR FIX",
-      descripcion: "LUMBAR FIX es una tecnología diseñada para brindar soporte, alivio y corrección postural en la zona baja de la espalda. Funciona mediante columnas neumáticas verticales que se adaptan a la curvatura natural de la columna, detectando la postura y separando las vértebras para permitir que los discos se rehidraten y liberen los nervios pinzados.",
+      descripcion: "LUMBAR FIX es una tecnología diseñada para brindar soporte, alivio y corrección postural en la zona baja de la espalda. Funciona mediante columnas  verticales que se adaptan a la curvatura natural de la columna, detectando la postura y separando las vértebras para permitir que los discos se rehidraten y liberen los nervios pinzados.",
       pilares: [
         {
           titulo: "Alivio Inmediato",
-          desc: "Al inflar la faja, la tracción vertical retira el peso de la gravedad sobre la zona lumbar, frenando el pinchazo en minutos.",
+          desc: "Al colocar la faja, retira el peso de la gravedad sobre la zona lumbar, frenando el pinchazo en minutos.",
           icono: "flame"
         },
         {
-          titulo: "Compresión Neumática Graduada",
-          desc: "Estructuras de aire inflables que aplican tracción controlada y suave, adaptándose a cualquier complexión corporal.",
+          titulo: "Compresión Graduada",
+          desc: "Estructuras verticales que aplican tracción controlada y suave, adaptándose a cualquier complexión corporal.",
           icono: "compress"
         },
         {
@@ -225,7 +224,7 @@ const defaultInitialData = {
       "Mejora la alineación postural y frena la fatiga muscular",
       "Brinda mayor movilidad y libertad para trabajar o caminar",
       "Previene hernias discales, ciática y contracturas por sedentarismo",
-      "Fácil de transportar: liviana, discreta y adaptable"
+      "Fácil de transportar: liviana, discreta y adaptable con extensor de regalo"
     ],
     comparativa: [
       {
@@ -271,7 +270,7 @@ const defaultInitialData = {
         autor: "Carlos M.",
         rating: 5,
         ciudad: "Córdoba",
-        comentario: "Trabajo 10 horas programando frente a la computadora. Tenía un dolor lumbar constante que me irradiaba a la pierna izquierda. Con la faja y 20 minutos de inflado al mediodía y a la tarde sentí un alivio que no me daba ningún antiinflamatorio.",
+        comentario: "Trabajo 10 horas programando frente a la computadora. Tenía un dolor lumbar constante que me irradiaba a la pierna izquierda. Con la faja al mediodía y a la tarde sentí un alivio que no me daba ningún antiinflamatorio.",
         fecha: "Hace 3 días",
         verificado: true,
         foto: "/images/despues.jpg"
@@ -319,7 +318,7 @@ const defaultInitialData = {
       {
         id: "faq-3",
         pregunta: "¿Cuánto cuesta el envío y cuánto tarda?",
-        respuesta: "El envío es a cualquier punto del país para esta promoción. Despachamos en menos de 24 horas y el tiempo de entrega habitual es de 24 a 72 horas hábiles."
+        respuesta: "El envío es a cualquier punto del país, y esta sujeto al costo de cada provincia. Despachamos en menos de 24 horas y el tiempo de entrega habitual es de 24 a 72 horas hábiles."
       },
       {
         id: "faq-4",
@@ -341,7 +340,7 @@ const defaultInitialData = {
     },
     datosBancarios: {
       banco: "Mercado Pago / Banco Galicia",
-      titular: "Lumbar Fix ",
+      titular: "Lumbar Fix",
       cuit: "23-37066549-4",
       cbu: "0070327530004092450465",
       alias: "rbvillar3.gal",
@@ -435,7 +434,6 @@ function verifyAdminToken(token: string | undefined): boolean {
       raw === "adm_master_session_lumbarfix" ||
       raw === "adm_admin_master_token" ||
       raw === "admin" ||
-      raw === "admin1234" ||
       raw === "lumbarfix2025" ||
       raw.startsWith("adm_")
     ) {
@@ -853,10 +851,86 @@ async function startServer() {
     });
   });
 
+  // Helper to notify ISAMER OS from backend
+  async function notifyIsamerOSBackend(order: any) {
+    try {
+      // Map SKUs
+      const mappedItems = (order.items || []).map((it: any) => {
+        const id = String(it.id || it.productId || it.bundleId || "").toLowerCase();
+        const name = String(it.nombre || "").toLowerCase();
+        let sku = "LF-BELT-LXL";
+
+        if (id.includes("pack-lumbar-fix") || id.includes("pack-completo") || id.includes("bundle-completo") || (name.includes("pack") && (name.includes("completo") || name.includes("recomendado") || it.precio >= 80000))) {
+          sku = "CMB-LF-PACK";
+        } else if (id.includes("duo") || id.includes("bundle-duo") || name.includes("dúo") || name.includes("duo")) {
+          sku = "CMB-LF-DUO";
+        } else if (id.includes("rodillera") || name.includes("rodillera")) {
+          sku = "LF-KNEE-PRO";
+        } else if (id.includes("tobillera") || name.includes("tobillera")) {
+          sku = "LF-ANKLE-COMP";
+        } else if (id.includes("foam") || id.includes("roller") || name.includes("foam") || name.includes("roller")) {
+          sku = "LF-FOAM-ROLLER";
+        }
+
+        return {
+          sku,
+          quantity: Number(it.cantidad || 1),
+          price: Number(it.precio || 20000)
+        };
+      });
+
+      let paymentMethod = "contra_entrega";
+      if (order.metodoPago === "mercadopago" || order.metodoPago === "mercadopago_qr") {
+        paymentMethod = "mercadopago_qr";
+      } else if (order.metodoPago === "transferencia") {
+        paymentMethod = "transferencia";
+      }
+
+      const client = order.cliente || {};
+      const shippingAddress = [
+        client.calle ? `${client.calle} ${client.altura || ""}`.trim() : "",
+        client.ciudad || "",
+        client.provincia || ""
+      ].filter(Boolean).join(", ") || "Dirección a coordinar";
+
+      const payload = {
+        businessId: "lumbarfix",
+        orderId: order.trackingCode || order.id,
+        customerName: `${client.nombre || ""} ${client.apellido || ""}`.trim() || "Cliente Lumbar Fix",
+        phone: client.telefono || "",
+        items: mappedItems.length > 0 ? mappedItems : [{ sku: "LF-BELT-LXL", quantity: 1, price: order.total || 20000 }],
+        total: Number(order.total || 20000),
+        paymentMethod,
+        shippingAddress
+      };
+
+      console.log(`[ISAMER OS] Syncing order ${payload.orderId} with ISAMER webhook...`);
+      fetch("https://isamerbblumbar.onrender.com/api/webhooks/lumbarfix-orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Store-Origin": "lumbar-fix.vercel.app"
+        },
+        body: JSON.stringify(payload)
+      }).then(async (r) => {
+        if (r.ok) {
+          console.log(`[ISAMER OS] ✅ Order ${payload.orderId} synchronized successfully`);
+        } else {
+          console.warn(`[ISAMER OS] Webhook returned status ${r.status}`);
+        }
+      }).catch((e) => {
+        console.warn("[ISAMER OS] Background webhook request failed:", e?.message);
+      });
+    } catch (e: any) {
+      console.warn("[ISAMER OS] Error preparing webhook payload:", e?.message);
+    }
+  }
+
   // Mercado Pago Preference creation
   app.post("/api/mercadopago/create-preference", async (req, res) => {
     try {
-      const { orderId, items, cliente, total } = req.body;
+      const { orderId, items, cliente, payer, total } = req.body;
+      const clientData = cliente || payer || {};
       const db = loadDb();
 
       const mpToken =
@@ -864,7 +938,17 @@ async function startServer() {
         db.siteContent?.mercadopago?.accessToken ||
         "";
 
+      // If a custom payment link is defined in siteContent.mercadopago, support it directly
+      const directLink = db.siteContent?.mercadopago?.linkPago;
+
       if (!mpToken) {
+        if (directLink) {
+          return res.json({
+            success: true,
+            init_point: directLink,
+            initPoint: directLink
+          });
+        }
         return res.json({
           success: false,
           requiresSetup: true,
@@ -877,7 +961,7 @@ async function startServer() {
       const baseUrl = `${protocol}://${host}`;
 
       const preferencePayload = {
-        items: items.map((it: any) => ({
+        items: (items || []).map((it: any) => ({
           id: String(it.id || "faja"),
           title: String(it.nombre || "Lumbar Fix"),
           quantity: Number(it.cantidad || 1),
@@ -885,16 +969,16 @@ async function startServer() {
           unit_price: Number(it.precio || 0)
         })),
         payer: {
-          name: cliente?.nombre || "Comprador",
-          surname: cliente?.apellido || "",
-          email: cliente?.email || "cliente@lumbarfix.com",
+          name: clientData.nombre || clientData.name || "Comprador",
+          surname: clientData.apellido || clientData.surname || "",
+          email: clientData.email || "cliente@lumbarfix.com",
           phone: {
-            number: cliente?.telefono || ""
+            number: clientData.telefono || (typeof clientData.phone === "object" ? clientData.phone.number : clientData.phone) || ""
           },
           address: {
-            street_name: cliente?.calle || "",
-            street_number: Number(cliente?.altura) || 1,
-            zip_code: cliente?.cp || ""
+            street_name: clientData.calle || "",
+            street_number: Number(clientData.altura) || 1,
+            zip_code: clientData.cp || ""
           }
         },
         back_urls: {
@@ -903,7 +987,7 @@ async function startServer() {
           pending: `${baseUrl}/?mp_status=pending&order_id=${orderId}`
         },
         auto_return: "approved",
-        external_reference: orderId,
+        external_reference: String(orderId || "LF-ORD"),
         statement_descriptor: "LUMBARFIX"
       };
 
@@ -923,10 +1007,18 @@ async function startServer() {
           success: true,
           preferenceId: mpData.id,
           init_point: mpData.init_point,
+          initPoint: mpData.init_point,
           sandbox_init_point: mpData.sandbox_init_point
         });
       } else {
         console.error("Mercado Pago API error:", mpData);
+        if (directLink) {
+          return res.json({
+            success: true,
+            init_point: directLink,
+            initPoint: directLink
+          });
+        }
         return res.status(400).json({
           success: false,
           error: mpData.message || "Error al generar la preferencia en Mercado Pago"
@@ -1118,6 +1210,10 @@ async function startServer() {
     }
 
     saveDb(db);
+
+    // Synchronize sale with ISAMER OS in background
+    notifyIsamerOSBackend(newOrder);
+
     res.json({ success: true, order: newOrder });
   });
 

@@ -1214,7 +1214,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               #{idx + 1}
                             </span>
                             <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-[220px]">
+                              <span className="font-bold text-slate-900 block truncate max-w-55">
                                 {item.nombre}
                               </span>
                               <span className="text-[11px] text-slate-500">
@@ -1442,7 +1442,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         onChange={(e) => setProdForm({ ...prodForm, reelActivo: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
                     </label>
                   </div>
 
@@ -1502,7 +1502,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <span className="font-bold flex items-center gap-1.5 text-purple-300">
                               <Play className="w-3.5 h-3.5 fill-current" /> Vista previa del Reel:
                             </span>
-                            <span className="text-slate-400 text-[10px] font-mono truncate max-w-[220px]">
+                            <span className="text-slate-400 text-[10px] font-mono truncate max-w-55">
                               {prodForm.reelUrl}
                             </span>
                           </div>
@@ -1705,7 +1705,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                   {/* Add Image Form with PC Upload as Primary */}
                   <div className="pt-3 border-t border-slate-200 space-y-3">
-                    <div className="p-3.5 bg-gradient-to-r from-cyan-50 to-teal-50 rounded-xl border border-cyan-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="p-3.5 bg-linear-to-r from-cyan-50 to-teal-50 rounded-xl border border-cyan-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                           <Upload className="w-4 h-4" />
@@ -2422,13 +2422,41 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             ...contentForm.mercadopago,
                             activo: contentForm.mercadopago?.activo ?? true,
                             accessToken: contentForm.mercadopago?.accessToken || "",
-                            publicKey: e.target.value.trim()
+                            publicKey: e.target.value.trim(),
+                            linkPago: contentForm.mercadopago?.linkPago || ""
                           }
                         })
                       }
                       placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                       className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
                     />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Link de Pago Directo de Mercado Pago (Opcional / Alternativa)
+                    </label>
+                    <input
+                      type="url"
+                      value={contentForm.mercadopago?.linkPago || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          mercadopago: {
+                            ...contentForm.mercadopago,
+                            activo: contentForm.mercadopago?.activo ?? true,
+                            accessToken: contentForm.mercadopago?.accessToken || "",
+                            publicKey: contentForm.mercadopago?.publicKey || "",
+                            linkPago: e.target.value.trim()
+                          }
+                        })
+                      }
+                      placeholder="https://mpago.la/... o https://link.mercadopago.com.ar/..."
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Si creaste un link de cobro desde la app o web de Mercado Pago, pegalo acá como alternativa directa para redirigir al comprador al instante.
+                    </p>
                   </div>
 
                   {/* Step by step guide */}
