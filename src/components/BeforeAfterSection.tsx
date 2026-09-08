@@ -56,7 +56,7 @@ export const BeforeAfterSection: React.FC = () => {
           <div className="bg-cyan-50/50 rounded-2xl border-2 border-cyan-400 p-5 space-y-4 shadow-md">
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 bg-cyan-500 text-slate-950 text-xs font-black px-3 py-1 rounded-full shadow-xs">
-                <Check className="w-3.5 h-3.5" /> DESPUÉS (Tracción neumática)
+                <Check className="w-3.5 h-3.5" /> DESPUÉS (Columna descomprimida)
               </span>
               <span className="text-xs text-cyan-800 font-bold">Con Lumbar Fix</span>
             </div>

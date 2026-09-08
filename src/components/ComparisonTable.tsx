@@ -52,7 +52,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
                   <th className="p-4 sm:p-5 w-1/2">Beneficio / Característica</th>
                   <th className="p-4 sm:p-5 w-1/4 text-center bg-cyan-50/80 border-x border-cyan-200 text-cyan-900 font-black">
                     <span className="block text-sm">LUMBAR FIX®</span>
-                    <span className="text-[10px] text-cyan-700 font-normal">Tracción neumática</span>
+                    <span className="text-[10px] text-cyan-700 font-normal">Sistema 360°</span>
                   </th>
                   <th className="p-4 sm:p-5 text-center">Fajas Tradicionales</th>
                   <th className="p-4 sm:p-5 text-center">Pastillas / Analgésicos</th>

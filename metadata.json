@@ -1,6 +1,6 @@
 {
   "name": "Lumbar Fix - Tienda Oficial",
-  "description": "Tienda oficial de la faja descompresora lumbar Lumbar Fix con sistema de tracción neumática para alivio de dolor lumbar, ciática y hernias.",
+  "description": "Tienda oficial de la faja descompresora lumbar Lumbar Fix con sistema 360° para alivio de dolor lumbar, ciática y hernias.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

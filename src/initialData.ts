@@ -167,7 +167,7 @@ export const defaultSiteContent: SiteContent = {
     "solucion": {
         "badge": "LA TECNOLOGÍA",
         "titulo": "LUMBAR FIX",
-        "descripcion": "LUMBAR FIX es una tecnología diseñada para brindar soporte, alivio y corrección postural en la zona baja de la espalda. Funciona mediante columnas neumáticas verticales que se adaptan a la curvatura natural de la columna, detectando la postura y separando las vértebras para permitir que los discos se rehidraten y liberen los nervios pinzados.",
+        "descripcion": "LUMBAR FIX es una tecnología diseñada para brindar soporte, alivio y corrección postural en la zona baja de la espalda. Funciona mediante columnas verticales que se adaptan a la curvatura natural de la columna, detectando la postura y separando las vértebras para permitir que los discos se rehidraten y liberen los nervios pinzados.",
         "pilares": [
             {
                 "titulo": "Alivio Inmediato",
@@ -175,8 +175,8 @@ export const defaultSiteContent: SiteContent = {
                 "icono": "flame"
             },
             {
-                "titulo": "Compresión Neumática Graduada",
-                "desc": "Estructuras de aire inflables que aplican tracción controlada y suave, adaptándose a cualquier complexión corporal.",
+                "titulo": "Compresión Graduada",
+                "desc": "Estructuras que aplican tracción controlada y suave, adaptándose a cualquier complexión corporal.",
                 "icono": "compress"
             },
             {

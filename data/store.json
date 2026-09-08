@@ -15,11 +15,11 @@
         "/uploads/media-1788896634309-nuquv.jpeg",
         "/uploads/media-1788896651430-wbqmh.jpg"
       ],
-      "descripcion": "Faja descompresora vertebral con tracción vertical neumática. Libera la presión sobre discos herniados y nervio ciático de manera inmediata.",
+      "descripcion": "Faja descompresora vertebral . Libera la presión sobre discos herniados y nervio ciático de manera inmediata.",
       "activo": true,
       "badge": "MÁS VENDIDO",
       "caracteristicas": [
-        "Descompresión vertebral neumática 360°",
+        "Descompresión vertebral 360°",
         "Inflador manual ergonómico incluido",
         "Extensor de cintura adaptable (70cm - 125cm)",
         "Material respirable hipoalergénico"
@@ -165,7 +165,7 @@
     "solucion": {
       "badge": "LA TECNOLOGÍA",
       "titulo": "LUMBAR FIX",
-      "descripcion": "LUMBAR FIX es una tecnología diseñada para brindar soporte, alivio y corrección postural en la zona baja de la espalda. Funciona mediante columnas neumáticas verticales que se adaptan a la curvatura natural de la columna, detectando la postura y separando las vértebras para permitir que los discos se rehidraten y liberen los nervios pinzados.",
+      "descripcion": "LUMBAR FIX es una tecnología diseñada para brindar soporte, alivio y corrección postural en la zona baja de la espalda. Funciona mediante columnas verticales que se adaptan a la curvatura natural de la columna, detectando la postura y separando las vértebras para permitir que los discos se rehidraten y liberen los nervios pinzados.",
       "pilares": [
         {
           "titulo": "Alivio Inmediato",
@@ -173,8 +173,8 @@
           "icono": "flame"
         },
         {
-          "titulo": "Compresión Neumática Graduada",
-          "desc": "Estructuras de aire inflables que aplican tracción controlada y suave, adaptándose a cualquier complexión corporal.",
+          "titulo": "Compresión Graduada",
+          "desc": "Estructuras que aplican tracción controlada y suave, adaptándose a cualquier complexión corporal.",
           "icono": "compress"
         },
         {
@@ -251,7 +251,7 @@
         "autor": "Carlos M.",
         "rating": 5,
         "ciudad": "Córdoba",
-        "comentario": "Trabajo 10 horas programando frente a la computadora. Tenía un dolor lumbar constante que me irradiaba a la pierna izquierda. Con la faja y 20 minutos de inflado al mediodía y a la tarde sentí un alivio que no me daba ningún antiinflamatorio.",
+        "comentario": "Trabajo 10 horas programando frente a la computadora. Tenía un dolor lumbar constante que me irradiaba a la pierna izquierda. Con la faja al mediodía y a la tarde sentí un alivio que no me daba ningún antiinflamatorio.",
         "fecha": "Hace 3 días",
         "verificado": true,
         "foto": "/images/despues.jpg"

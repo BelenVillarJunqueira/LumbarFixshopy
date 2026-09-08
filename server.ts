@@ -41,7 +41,7 @@ const defaultInitialData = {
       activo: true,
       badge: "MÁS VENDIDO",
       caracteristicas: [
-        "Descompresión vertebral neumática 360°",
+        "Descompresión vertebral 360°",
         "Inflador manual ergonómico incluido",
         "Extensor de cintura adaptable (70cm - 125cm)",
         "Material respirable hipoalergénico"
@@ -193,8 +193,8 @@ const defaultInitialData = {
           icono: "flame"
         },
         {
-          titulo: "Compresión Neumática Graduada",
-          desc: "Estructuras de aire inflables que aplican tracción controlada y suave, adaptándose a cualquier complexión corporal.",
+          titulo: "Compresión Graduada",
+          desc: "Estructuras que aplican tracción controlada y suave, adaptándose a cualquier complexión corporal.",
           icono: "compress"
         },
         {
