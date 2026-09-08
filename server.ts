@@ -445,7 +445,6 @@ function verifyAdminToken(token: string | undefined): boolean {
       raw === "adm_master_session_lumbarfix" ||
       raw === "adm_admin_master_token" ||
       raw === "admin" ||
-      raw === "admin1234" ||
       raw === "lumbarfix2025" ||
       raw.startsWith("adm_")
     ) {
@@ -790,11 +789,10 @@ async function startServer() {
       const expectedUser = String(adminConfig.username || "admin").trim().toLowerCase();
       const expectedPass = String(adminConfig.password || "lumbarfix2025").trim();
 
-      // Accept configured password, as well as lumbarfix2025 or admin1234
+      // Accept configured password, as well as lumbarfix2025 
       const isPassValid =
         inputPass === expectedPass ||
-        inputPass === "lumbarfix2025" ||
-        inputPass === "admin1234";
+        inputPass === "lumbarfix2025"
 
       const isUserValid = inputUser === expectedUser || inputUser === "admin";
 

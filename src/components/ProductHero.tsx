@@ -723,7 +723,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
               </div>
               <div className="text-center p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="block text-base">💨</span>
-                <span className="text-[11px] font-bold text-slate-800 block">Bomba Manual</span>
+                <span className="text-[11px] font-bold text-slate-800 block">Producto Premium</span>
                 <span className="text-[10px] text-slate-500">Tracción regulable</span>
               </div>
               <div className="text-center p-2.5 rounded-xl bg-slate-50 border border-slate-100">
@@ -957,7 +957,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                 {openAccordion === "descripcion" && (
                   <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2">
                     <p>
-                      La faja <strong>Lumbar Fix®</strong> utiliza tecnología de tracción neumática vertical. Al inflarse con la bomba manual, las cámaras internas se expanden verticalmente, transfiriendo el peso de la parte superior del cuerpo hacia la pelvis.
+                      La faja <strong>Lumbar Fix®</strong> utiliza tecnología 360°. Al colocarse correctamente, distribuye la tracción de manera uniforme alrededor de la cintura, facilitando la descompresión lumbar.
                     </p>
                     <p>
                       Este estiramiento controlado abre el espacio entre las vértebras lumbares (L1 a L5), creando una presión negativa que alivia la compresión sobre los discos herniados y libera los nervios pinzados, permitiendo el retorno de nutrientes y agua a los tejidos.
@@ -985,10 +985,10 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                 {openAccordion === "uso" && (
                   <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2">
                     <ol className="list-decimal pl-5 space-y-1.5">
-                      <li><strong>Colocá</strong> la faja desinflada a la altura de la cintura (entre la última costilla y la pelvis).</li>
-                      <li><strong>Ajustá</strong> el velcro de manera firme pero cómoda (usá el extensor si tu cintura supera los 95cm).</li>
-                      <li><strong>Conectá</strong> la boquilla de la bomba manual e inflá suavemente hasta sentir una tracción placentera y descompresora.</li>
-                      <li><strong>Utilizala</strong> durante 20 a 40 minutos mientras trabajás, manejás o descansás, 2 o 3 veces al día.</li>
+                      <li><strong>Colocá</strong> faja alrededor de tu zona lumbar, asegurándote de que quede correctamente centrada y cubra la parte baja de la espalda.</li>
+                      <li><strong>Ajustá</strong> las bandas y el velcro de manera firme pero cómoda, logrando una buena sensación de sujeción sin ejercer una presión excesiva.</li>
+                      <li><strong>Utilizala</strong> durante actividades que requieran esfuerzo físico, muchas horas sentado, de pie o movimientos repetitivos para brindar mayor sensación de soporte.</li>
+                      <li><strong>Usala</strong> durante tus actividades diarias, trabajo, caminatas o momentos de descanso, ajustando siempre la presión según tu comodidad y necesidad.</li>
                     </ol>
                   </div>
                 )}
@@ -1013,8 +1013,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                 {openAccordion === "caja" && (
                   <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>1x Faja Descompresora Lumbar Fix® con cámaras de tracción vertical.</li>
-                      <li>1x Bomba de inflado manual con válvula de liberación rápida.</li>
+                      <li>1x Faja Descompresora Lumbar Fix® </li>
                       <li>1x Cinturón extensor de velcro de REGALO (amplía hasta 125cm).</li>
                       <li>1x Manual ilustrado de uso y recomendaciones en español.</li>
                       <li><em>(Si elegís el Pack Completo: incluye además Rodillera + Tobillera + Foam Roller).</em></li>

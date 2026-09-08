@@ -94,7 +94,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
             // but the owner entered the valid store credentials:
             const isValidAdmin =
                 trimmedUser.toLowerCase() === "admin" &&
-                (trimmedPass === "lumbarfix2025" || trimmedPass === "admin1234");
+                (trimmedPass === "lumbarfix2025" || trimmedPass === "lumbarfix2025");
 
             if (isValidAdmin) {
                 const fallbackToken = "adm_master_session_lumbarfix";

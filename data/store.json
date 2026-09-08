@@ -91,7 +91,7 @@
       "id": "bundle-1",
       "nombre": "1x Faja Lumbar",
       "subtitulo": "Tratamiento individual",
-      "itemsTexto": "1 Faja Lumbar Fix + Bomba de inflado + Extensor",
+      "itemsTexto": "1 Faja Lumbar Fix ",
       "precio": 20000,
       "precioAnterior": 35000,
       "descuentoTexto": "Ahorrás $15.000",
@@ -105,7 +105,7 @@
       "id": "bundle-2",
       "nombre": "2x Faja Lumbar",
       "subtitulo": "Para vos y tu pareja o familiar",
-      "itemsTexto": "2 Fajas Lumbar Fix + 2 Bombas + 2 Extensores",
+      "itemsTexto": "2 Fajas Lumbar Fix ",
       "precio": 32000,
       "precioAnterior": 70000,
       "descuentoTexto": "¡Ahorrás $38.000! ($16.000 c/u)",
@@ -221,7 +221,7 @@
         "analgesicos": false
       },
       {
-        "caracteristica": "Regulación de tracción con bomba manual",
+        "caracteristica": "Regulación de ajustes y tracción según tu postura",
         "lumbarFix": true,
         "fajaTradicional": false,
         "analgesicos": false
@@ -261,7 +261,7 @@
         "autor": "Mariana S.",
         "rating": 5,
         "ciudad": "Rosario",
-        "comentario": "Excelente producto. Al principio dudaba si realmente se sentía la tracción, pero cuando le das aire con la bomba sentís cómo te estira la columna para arriba y te saca todo el peso de encima. Muy recomendable el pack.",
+        "comentario": "Excelente producto. Al principio dudaba si realmente se sentía la tracción, pero cuando cuando lo adaptas bien a tu postura sentís cómo te estira la columna para arriba y te saca todo el peso de encima. Muy recomendable el pack.",
         "fecha": "Hace 1 semana",
         "verificado": true
       },
@@ -309,7 +309,7 @@
       {
         "id": "faq-5",
         "pregunta": "¿Cómo se utiliza y cuánto tiempo por día?",
-        "respuesta": "Es muy simple: te colocás la faja desinflada alrededor de la cintura, la ajustás con el velcro, conectás la bomba manual e inflás hasta sentir un estiramiento agradable y firme. Se recomienda usarla de 20 a 40 minutos, 2 o 3 veces por día."
+        "respuesta": "Es muy simple: te colocás la faja desinflada alrededor de la cintura, la ajustás con el velcro, y la centras hasta sentir un estiramiento agradable y firme. Se recomienda usarla de 20 a 40 minutos, 2 o 3 veces por día."
       }
     ],
     "contacto": {
@@ -364,7 +364,7 @@
         "email": "belu.dvt@hotmail.com",
         "telefono": "01161645813",
         "provincia": "Buenos Aires",
-        "ciudad": "Capital Federa",
+        "ciudad": "Capital Federal",
         "calle": "ladines",
         "altura": "3557",
         "piso": "",
@@ -388,7 +388,7 @@
           "precio": 32000,
           "cantidad": 1,
           "img": "/images/fajalumbar.jpg",
-          "detalle": "2 Fajas Lumbar Fix + 2 Bombas + 2 Extensores"
+          "detalle": "2 Fajas Lumbar Fix "
         }
       ],
       "subtotal": 32000,
@@ -401,7 +401,7 @@
         "email": "belu.dvt@hotmail.com",
         "telefono": "01161645813",
         "provincia": "Buenos Aires",
-        "ciudad": "Capital Federa",
+        "ciudad": "Capital Federal",
         "calle": "ladines",
         "altura": "3557",
         "piso": "",
@@ -425,7 +425,7 @@
           "precio": 32000,
           "cantidad": 1,
           "img": "/images/fajalumbar.jpg",
-          "detalle": "2 Fajas Lumbar Fix + 2 Bombas + 2 Extensores"
+          "detalle": "2 Fajas Lumbar Fix "
         }
       ],
       "subtotal": 32000,
@@ -438,7 +438,7 @@
         "email": "belu.dvt@hotmail.com",
         "telefono": "01161645813",
         "provincia": "Buenos Aires",
-        "ciudad": "Capital Federa",
+        "ciudad": "Capital Federal",
         "calle": "ladines",
         "altura": "3557",
         "piso": "",
@@ -462,7 +462,7 @@
           "precio": 32000,
           "cantidad": 1,
           "img": "/images/fajalumbar.jpg",
-          "detalle": "2 Fajas Lumbar Fix + 2 Bombas + 2 Extensores"
+          "detalle": "2 Fajas Lumbar Fix "
         }
       ],
       "subtotal": 32000,
@@ -475,7 +475,7 @@
         "email": "belu.dvt@hotmail.com",
         "telefono": "01161645813",
         "provincia": "Buenos Aires",
-        "ciudad": "Capital Federa",
+        "ciudad": "Capital Federal",
         "calle": "ladines",
         "altura": "3557",
         "piso": "",
