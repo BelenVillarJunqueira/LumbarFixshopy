@@ -19,47 +19,61 @@ import { AdminLoginModal } from "./components/AdminLoginModal";
 import { FloatingWhatsApp } from "./components/FloatingWhatsApp";
 
 import { Product, BundleOption, SiteContent, Order, CartItem } from "./types";
-
-const API_URL = "https://lumbarfix.onrender.com";
-
+import { defaultProducts, defaultBundles, defaultSiteContent } from "./initialData";
+import { API_URL, apiUrl } from "./apiConfig";
+import {
+  initMetaPixel,
+  trackPageView,
+  trackViewContent,
+  trackAddToCart,
+  trackInitiateCheckout,
+  trackPurchase
+} from "./services/metaPixel";
 
 export default function App() {
-  // Data states from backend
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: "faja-lumbar",
-      nombre: "Faja lumbar",
-      precio: 20000,
-      precioAnterior: 35000,
-      stock: 13,
-      img: "/images/fajalumbar.jpg",
-      galeria: [
-        "/images/fajalumbar.jpg",
-        "/images/pack2.png",
-        "/images/despues.jpg",
-        "/images/antes.jpg",
-        "/images/rodillera.jpg",
-        "/images/tobillera.jpg",
-        "/images/foamroller.webp"
-      ],
-      descripcion: "Faja descompresora vertebral con tracción vertical neumática. Libera la presión sobre discos herniados y nervio ciático de manera inmediata.",
-      activo: true,
-      badge: "MÁS VENDIDO",
-      caracteristicas: [
-        "Descompresión vertebral neumática 360°",
-        "Inflador manual ergonómico incluido",
-        "Extensor de cintura adaptable (70cm - 125cm)",
-        "Material respirable hipoalergénico"
-      ],
-      reelUrl: "/images/reel-lumbarfix.mp4",
-      reelTitulo: "Reel Demostrativo: Descompresión Lumbar Fix",
-      reelActivo: true
-    }
-  ]);
-  const [bundles, setBundles] = useState<BundleOption[]>([]);
-  const [siteContent, setSiteContent] = useState<SiteContent | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Data states initialized with resilient defaults + localStorage cache
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem("lumbarfix_products");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return defaultProducts;
+  });
+
+  const [bundles, setBundles] = useState<BundleOption[]>(() => {
+    try {
+      const saved = localStorage.getItem("lumbarfix_bundles");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return defaultBundles;
+  });
+
+  const [siteContent, setSiteContent] = useState<SiteContent>(() => {
+    try {
+      const saved = localStorage.getItem("lumbarfix_site_content");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.heroHeadline) return parsed;
+      }
+    } catch {}
+    return defaultSiteContent;
+  });
+
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const saved = localStorage.getItem("lumbarfix_orders");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const [loading, setLoading] = useState(false);
 
   // Cart & UI modal states
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -142,8 +156,35 @@ export default function App() {
   }, []);
 
   // Main product (default: faja-lumbar)
-  const mainProduct = products.find((p) => p.id === "faja-lumbar") || products[0];
-  const packBundle = bundles.find((b) => b.id === "bundle-pack") || bundles[2] || bundles[0];
+  const mainProduct = products.find((p) => p.id === "faja-lumbar") || products[0] || defaultProducts[0];
+  const packBundle = bundles.find((b) => b.id === "bundle-pack") || bundles[2] || bundles[0] || defaultBundles[2];
+
+  // Initialize Meta Ads / Facebook Pixel tracking
+  useEffect(() => {
+    const pixelId =
+      siteContent.metaPixel?.pixelId?.trim() ||
+      (typeof window !== "undefined" ? localStorage.getItem("lumbarfix_meta_pixel")?.trim() : "") ||
+      "";
+
+    if (siteContent.metaPixel?.activo !== false && pixelId) {
+      initMetaPixel(pixelId, siteContent.metaPixel?.testEventCode);
+      try {
+        localStorage.setItem("lumbarfix_meta_pixel", pixelId);
+      } catch {}
+    }
+  }, [siteContent.metaPixel?.pixelId, siteContent.metaPixel?.activo, siteContent.metaPixel?.testEventCode]);
+
+  // Track ViewContent on main product loaded
+  useEffect(() => {
+    if (mainProduct) {
+      trackViewContent({
+        id: mainProduct.id,
+        name: mainProduct.nombre,
+        value: mainProduct.precio,
+        currency: "ARS"
+      });
+    }
+  }, [mainProduct?.id]);
 
   // Cart actions
   const handleAddToCart = (itemOrBundle: Product | BundleOption) => {
@@ -170,6 +211,15 @@ export default function App() {
       return [...prev, newItem];
     });
 
+    // Track Meta Ads AddToCart
+    trackAddToCart({
+      id: itemOrBundle.id,
+      name: itemOrBundle.nombre,
+      value: itemOrBundle.precio,
+      currency: "ARS",
+      quantity: 1
+    });
+
     setIsCartOpen(true);
   };
 
@@ -192,6 +242,20 @@ export default function App() {
           detalle: bundle.itemsTexto
         }
       ];
+    });
+
+    // Track Meta Ads AddToCart & InitiateCheckout
+    trackAddToCart({
+      id: bundle.id,
+      name: bundle.nombre,
+      value: bundle.precio,
+      currency: "ARS",
+      quantity: 1
+    });
+    trackInitiateCheckout({
+      items: [{ id: bundle.id, nombre: bundle.nombre, precio: bundle.precio, cantidad: 1 }],
+      total: bundle.precio,
+      currency: "ARS"
     });
 
     setIsCheckoutOpen(true);
@@ -225,6 +289,23 @@ export default function App() {
     setIsCheckoutOpen(false);
     setIsCartOpen(false);
     setCart([]);
+    try {
+      localStorage.removeItem("lumbarfix_cart");
+    } catch {}
+
+    // Track Meta Ads Purchase
+    try {
+      trackPurchase({
+        orderId: order.trackingCode || order.id,
+        total: order.total,
+        currency: "ARS",
+        items: order.items,
+        paymentMethod: order.metodoPago
+      });
+    } catch (pxErr) {
+      console.warn("Meta Pixel purchase tracking error:", pxErr);
+    }
+
     // Refresh orders list
     setOrders((prev) => [order, ...prev]);
   };
@@ -258,7 +339,7 @@ export default function App() {
     setIsAdminOpen(true);
     // Refresh orders and store content with admin permissions
     try {
-      const res = await fetch("/api/orders", {
+      const res = await fetch(`${API_URL}/api/orders`, {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
@@ -277,7 +358,7 @@ export default function App() {
     try {
       localStorage.removeItem("lumbarfix_admin_token");
       localStorage.removeItem("lumbarfix_admin_user");
-    } catch { }
+    } catch {}
     setAdminToken(null);
     setIsAdminOpen(false);
   };
@@ -321,7 +402,7 @@ export default function App() {
       token = "adm_master_session_lumbarfix";
       try {
         localStorage.setItem("lumbarfix_admin_token", token);
-      } catch { }
+      } catch {}
     }
     return {
       "Content-Type": "application/json",
@@ -370,9 +451,14 @@ export default function App() {
     // 2. Client-side resilience cache
     try {
       localStorage.setItem(`lumbarfix_saved_${targetId}`, JSON.stringify(productToSave));
-    } catch { }
+      const currentProds = JSON.parse(localStorage.getItem("lumbarfix_products") || "[]");
+      const updatedList = Array.isArray(currentProds) && currentProds.length > 0
+        ? currentProds.map((p: any) => (p.id === targetId ? productToSave : p))
+        : [productToSave];
+      localStorage.setItem("lumbarfix_products", JSON.stringify(updatedList));
+    } catch {}
 
-    // 3. Persist to backend database
+    // 3. Persist to backend database if available
     const { ok, data } = await safeAdminFetch(`${API_URL}/api/products/${targetId}`, {
       method: "PUT",
       headers: getAdminHeaders(),
@@ -385,16 +471,19 @@ export default function App() {
       );
       try {
         localStorage.setItem(`lumbarfix_saved_${targetId}`, JSON.stringify(data.product));
-      } catch { }
+      } catch {}
       return data.product;
-    } else {
-      console.error("Failed to persist product to server:", data);
-      throw new Error(data?.error || "No se pudo guardar en el servidor.");
     }
+    // Return saved product even if server is offline (e.g. static host on Vercel)
+    return productToSave;
   };
 
   const handleUpdateBundles = async (updatedBundles: BundleOption[]) => {
     setBundles(updatedBundles);
+    try {
+      localStorage.setItem("lumbarfix_bundles", JSON.stringify(updatedBundles));
+    } catch {}
+
     const { ok, data } = await safeAdminFetch(`${API_URL}/api/bundles`, {
       method: "PUT",
       headers: getAdminHeaders(),
@@ -403,13 +492,16 @@ export default function App() {
     if (ok && data && data.success) {
       setBundles(data.bundles);
       return data.bundles;
-    } else {
-      throw new Error(data?.error || "Error al guardar packs");
     }
+    return updatedBundles;
   };
 
   const handleUpdateSiteContent = async (updatedContent: SiteContent) => {
     setSiteContent(updatedContent);
+    try {
+      localStorage.setItem("lumbarfix_site_content", JSON.stringify(updatedContent));
+    } catch {}
+
     const { ok, data } = await safeAdminFetch(`${API_URL}/api/site-content`, {
       method: "PUT",
       headers: getAdminHeaders(),
@@ -418,9 +510,8 @@ export default function App() {
     if (ok && data && data.success) {
       setSiteContent(data.siteContent);
       return data.siteContent;
-    } else {
-      throw new Error(data?.error || "Error al guardar contenidos");
     }
+    return updatedContent;
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: Order["estado"]) => {
@@ -467,7 +558,7 @@ export default function App() {
     }
   };
 
-  if (loading || !mainProduct || !siteContent) {
+  if (!mainProduct || !siteContent) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
         <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
@@ -576,6 +667,7 @@ export default function App() {
         cartItems={cart}
         siteContent={siteContent}
         onOrderPlaced={handleOrderPlaced}
+        onClearCart={handleClearCart}
       />
 
       {/* 15. Order Confirmation & Tracking Modal */}

@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle, Truck, Package, MessageCircle, ArrowRight, ShieldCheck } from "lucide-react";
+import { CheckCircle, Truck, Package, MessageCircle, ArrowRight, ShieldCheck, CreditCard, ExternalLink } from "lucide-react";
 import { Order } from "../types";
 
 interface OrderConfirmationModalProps {
@@ -87,13 +87,26 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
           </div>
         </div>
 
-        {/* WhatsApp follow-up action */}
+        {/* Actions */}
         <div className="space-y-2.5 pt-2">
+          {order.metodoPago === "mercadopago" && (
+            <a
+              href={order.mpInitPoint || "https://link.mercadopago.com.ar/"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3.5 px-4 rounded-xl bg-[#009ee3] hover:bg-[#0086c2] text-white font-extrabold text-xs sm:text-sm tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-sky-500/25 cursor-pointer"
+            >
+              <CreditCard className="w-4 h-4" />
+              <span>Continuar y Abonar en Mercado Pago — {formatPrice(order.total)}</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+
           <a
             href={`https://wa.me/5493515056742?text=${encodeURIComponent(whatsappText)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm tracking-wide transition-all flex items-center justify-center gap-2 shadow-md"
+            className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm tracking-wide transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer"
           >
             <MessageCircle className="w-4 h-4" />
             <span>Notificar mi pedido por WhatsApp</span>
@@ -101,7 +114,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm tracking-wide transition-all"
+            className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm tracking-wide transition-all cursor-pointer"
           >
             Volver a la tienda
           </button>

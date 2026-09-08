@@ -114,13 +114,19 @@ export interface SiteContent {
     cuit: string;
     cbu: string;
     alias: string;
-    instrucciones: string;
+    instrucciones?: string;
   };
-  mercadopago: {
-    activo: boolean;
+  mercadopago?: {
+    activo?: boolean;
     accessToken?: string;
     publicKey?: string;
     linkPago?: string;
+  };
+  metaPixel?: {
+    activo?: boolean;
+    pixelId?: string;
+    conversionApiToken?: string;
+    testEventCode?: string;
   };
   garantiaDias: number;
 }
@@ -166,4 +172,5 @@ export interface Order {
   estado: 'Pendiente' | 'Confirmado' | 'En preparación' | 'Despachado' | 'Entregado' | 'Cancelado';
   fecha: string;
   notasAdmin?: string;
+  mpInitPoint?: string;
 }

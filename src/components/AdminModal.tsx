@@ -35,10 +35,14 @@ import {
   Flame,
   Check,
   Upload,
-  Link2
+  Link2,
+  Target,
+  Zap,
+  Activity
 } from "lucide-react";
 import { Product, SiteContent, Order, BundleOption } from "../types";
 import { API_URL, apiUrl } from "../apiConfig";
+import { getPixelDiagnostics, trackLead, initMetaPixel } from "../services/metaPixel";
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -79,7 +83,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onDeleteProduct,
   onResetDefaults
 }) => {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "producto" | "landing" | "catalogo" | "pedidos" | "pagos" | "ajustes">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "producto" | "landing" | "catalogo" | "pedidos" | "pagos" | "meta" | "ajustes">("dashboard");
 
   // Local editing states
   const defaultGallery = [
@@ -126,6 +130,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           activo: false,
           accessToken: "",
           publicKey: ""
+        },
+        metaPixel: {
+          activo: siteContent.metaPixel?.activo !== false,
+          pixelId: siteContent.metaPixel?.pixelId || (typeof window !== "undefined" ? localStorage.getItem("lumbarfix_meta_pixel") || "" : ""),
+          conversionApiToken: siteContent.metaPixel?.conversionApiToken || "",
+          testEventCode: siteContent.metaPixel?.testEventCode || ""
         }
       });
     }
@@ -137,23 +147,254 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [contentForm, setContentForm] = useState<SiteContent>({
     ...siteContent,
     datosBancarios: siteContent.datosBancarios || {
-      banco: "Mercado Pago / Banco Galicia",
-      titular: "LUMBAR FIX OFICIAL",
-      cuit: "20-38492819-4",
-      cbu: "0000003100012345678901",
-      alias: "LUMBARFIX.PAGOS",
-      instrucciones: "Transferí el monto exacto con el 10% de descuento y enviá el comprobante con tu número de pedido."
+      banco: "Mercado Pago / Galicia ",
+      titular: "Lumbar Fix ",
+      cuit: "23-37066549-4",
+      cbu: "0070327530004092450465",
+      alias: "RBVILLAR3.GAL",
+      instrucciones: "Realizá la transferencia por el total con el 10% de descuento aplicado y enviá el comprobante junto con tu código de seguimiento por WhatsApp para que despachemos hoy mismo."
     },
     mercadopago: siteContent.mercadopago || {
-      activo: false,
+      activo: true,
       accessToken: "",
       publicKey: ""
+    },
+    metaPixel: {
+      activo: siteContent.metaPixel?.activo !== false,
+      pixelId: siteContent.metaPixel?.pixelId || (typeof window !== "undefined" ? localStorage.getItem("lumbarfix_meta_pixel") || "" : ""),
+      conversionApiToken: siteContent.metaPixel?.conversionApiToken || "",
+      testEventCode: siteContent.metaPixel?.testEventCode || ""
     }
   });
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveBannerMsg, setSaveBannerMsg] = useState<string | null>(null);
   const [uploadingStatus, setUploadingStatus] = useState<string | null>(null);
+
+  // Meta Ads / Pixel testing & diagnostics states
+  const [testingMetaPixel, setTestingMetaPixel] = useState(false);
+  const [metaTestFeedback, setMetaTestFeedback] = useState<{ success: boolean; msg: string; details?: any } | null>(null);
+  const [metaDiagnostics, setMetaDiagnostics] = useState(() => getPixelDiagnostics());
+
+  // Backend connection & ISAMER configuration state
+  const [customBackendUrl, setCustomBackendUrl] = useState(() => {
+    try {
+      return (
+        localStorage.getItem("lumbarfix_backend_url") ||
+        localStorage.getItem("lumbarfix_render_url") ||
+        ""
+      );
+    } catch {
+      return "";
+    }
+  });
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionResult, setConnectionResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // Mercado Pago testing states
+  const [testingMpToken, setTestingMpToken] = useState(false);
+  const [mpTestResult, setMpTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTestMpToken = async () => {
+    const token = contentForm.mercadopago?.accessToken?.trim();
+    if (!token) {
+      setMpTestResult({
+        success: false,
+        message: "Por favor ingresá primero tu Access Token (APP_USR-...) para probar la conexión."
+      });
+      return;
+    }
+
+    setTestingMpToken(true);
+    setMpTestResult(null);
+
+    try {
+      const res = await fetch(apiUrl("/api/mercadopago/test-token"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMpTestResult({
+          success: true,
+          message: `¡Conexión exitosa! Cuenta vinculada: ${data.user?.nickname || data.user?.email || data.user?.id} (${data.user?.countryId || "AR"}). El Checkout Oficial está listo para recibir pagos con tarjetas y dinero en cuenta.`
+        });
+      } else {
+        setMpTestResult({
+          success: false,
+          message: data.error || "Token inválido o expirado. Verificá que comience con APP_USR-."
+        });
+      }
+    } catch (err: any) {
+      setMpTestResult({
+        success: false,
+        message: "Error de red al verificar con Mercado Pago: " + (err.message || "")
+      });
+    } finally {
+      setTestingMpToken(false);
+    }
+  };
+
+  const handleTestMetaPixel = async () => {
+    const pixelId = contentForm.metaPixel?.pixelId?.trim();
+    if (!pixelId) {
+      setMetaTestFeedback({
+        success: false,
+        msg: "Por favor ingresá un Pixel ID de Meta antes de ejecutar la prueba."
+      });
+      return;
+    }
+
+    setTestingMetaPixel(true);
+    setMetaTestFeedback(null);
+
+    try {
+      // 1. Client-side track lead test event
+      trackLead({
+        name: "Prueba Administrador Lumbar Fix",
+        origin: "Panel Admin (Test Event)",
+        value: 20000
+      });
+
+      // 2. Server-side CAPI test event
+      const res = await fetch(apiUrl("/api/meta-pixel/test-event"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pixelId,
+          conversionApiToken: contentForm.metaPixel?.conversionApiToken?.trim() || "",
+          testEventCode: contentForm.metaPixel?.testEventCode?.trim() || "",
+          eventName: "Lead"
+        })
+      });
+
+      const data = await res.json().catch(() => ({ success: false }));
+      if (res.ok && data.success) {
+        setMetaTestFeedback({
+          success: true,
+          msg: "¡Evento de prueba enviado exitosamente! Verificá en el Administrador de Eventos de Meta > pestaña 'Probar eventos'.",
+          details: data
+        });
+      } else {
+        setMetaTestFeedback({
+          success: false,
+          msg: data.error || "El evento del navegador se emitió, pero Meta CAPI devolvió un error. Verificá que el Token de API de Conversiones sea válido.",
+          details: data
+        });
+      }
+    } catch (err: any) {
+      setMetaTestFeedback({
+        success: false,
+        msg: `Error al probar Meta Pixel: ${err.message || err}`
+      });
+    } finally {
+      setTestingMetaPixel(false);
+      setMetaDiagnostics(getPixelDiagnostics());
+    }
+  };
+
+  const handleSaveMetaPixel = async () => {
+    setSaving(true);
+    try {
+      const pixelId = contentForm.metaPixel?.pixelId?.trim() || "";
+      if (pixelId) {
+        localStorage.setItem("lumbarfix_meta_pixel", pixelId);
+        initMetaPixel(pixelId, contentForm.metaPixel?.testEventCode);
+      }
+
+      await fetch(apiUrl("/api/meta-pixel/save"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          metaPixel: contentForm.metaPixel
+        })
+      });
+
+      await onUpdateSiteContent(contentForm);
+
+      setSaveSuccess(true);
+      setSaveBannerMsg("¡Configuración de Meta Ads & Pixel guardada con éxito!");
+      setTimeout(() => {
+        setSaveSuccess(false);
+        setSaveBannerMsg(null);
+      }, 4000);
+    } catch (err: any) {
+      alert("Error al guardar configuración de Meta Pixel: " + (err.message || ""));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveBackendUrl = () => {
+    const clean = customBackendUrl.trim().replace(/\/$/, "");
+    try {
+      if (clean) {
+        localStorage.setItem("lumbarfix_backend_url", clean);
+        localStorage.setItem("lumbarfix_render_url", clean);
+      } else {
+        localStorage.removeItem("lumbarfix_backend_url");
+        localStorage.removeItem("lumbarfix_render_url");
+      }
+      setSaveBannerMsg("¡URL del backend guardada! La página se recargará para aplicar los cambios.");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch {
+      alert("No se pudo guardar la URL.");
+    }
+  };
+
+  const handleResetBackendUrl = () => {
+    try {
+      localStorage.removeItem("lumbarfix_backend_url");
+      localStorage.removeItem("lumbarfix_render_url");
+      setCustomBackendUrl("");
+      setSaveBannerMsg("¡Restablecido a rutas relativas / servidor local! Recargando...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch {}
+  };
+
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    setConnectionResult(null);
+    try {
+      const urlToTest = customBackendUrl.trim()
+        ? `${customBackendUrl.trim().replace(/\/$/, "")}/api/products`
+        : apiUrl("/api/products");
+
+      const res = await fetch(urlToTest);
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data && (data.success || Array.isArray(data.products))) {
+          setConnectionResult({
+            ok: true,
+            msg: `¡Conexión exitosa! El servidor respondió con HTTP 200 OK (${data.products?.length || 0} productos cargados).`
+          });
+        } else {
+          setConnectionResult({
+            ok: true,
+            msg: "¡Conexión exitosa con el servidor (HTTP 200 OK)!"
+          });
+        }
+      } else {
+        setConnectionResult({
+          ok: false,
+          msg: `El servidor respondió con código ${res.status} (${res.statusText || "No encontrado"}). Verificá que la URL sea la del backend de la tienda y no del webhook de ISAMER.`
+        });
+      }
+    } catch (err: any) {
+      setConnectionResult({
+        ok: false,
+        msg: `Error al conectar: ${err?.message || "No se pudo contactar al servidor"}.`
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
 
   // Hidden file inputs for direct PC upload
   const reelFileInputRef = useRef<HTMLInputElement>(null);
@@ -513,9 +754,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setSaving(true);
     setSaveSuccess(false);
     try {
+      if (contentForm.mercadopago?.accessToken) {
+        const cleanToken = contentForm.mercadopago.accessToken.trim();
+        localStorage.setItem("lumbarfix_mp_token", cleanToken);
+        try {
+          await fetch(apiUrl("/api/mercadopago/save-token"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken: cleanToken,
+              publicKey: contentForm.mercadopago.publicKey?.trim()
+            })
+          });
+        } catch (saveErr) {
+          console.warn("Could not sync with /api/mercadopago/save-token:", saveErr);
+        }
+      }
       await onUpdateSiteContent(contentForm);
       setSaveSuccess(true);
-      setSaveBannerMsg("¡Contenido y textos guardados exitosamente!");
+      setSaveBannerMsg("¡Configuraciones y Mercado Pago guardados exitosamente!");
       setTimeout(() => {
         setSaveSuccess(false);
         setSaveBannerMsg(null);
@@ -945,6 +1202,24 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           </button>
 
           <button
+            onClick={() => {
+              setActiveTab("meta");
+              setMetaDiagnostics(getPixelDiagnostics());
+            }}
+            className={`px-3 sm:px-4 py-2.5 text-xs font-bold rounded-t-xl transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
+              activeTab === "meta"
+                ? "bg-white text-blue-700 border-t-2 border-blue-600 shadow-xs font-extrabold"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Target className="w-4 h-4 text-blue-600" />
+            <span>Meta Ads & Pixel</span>
+            {contentForm.metaPixel?.pixelId ? (
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+            ) : null}
+          </button>
+
+          <button
             onClick={() => setActiveTab("pedidos")}
             className={`px-3 sm:px-4 py-2.5 text-xs font-bold rounded-t-xl transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
               activeTab === "pedidos"
@@ -1214,7 +1489,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               #{idx + 1}
                             </span>
                             <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-55">
+                              <span className="font-bold text-slate-900 block truncate max-w-[220px]">
                                 {item.nombre}
                               </span>
                               <span className="text-[11px] text-slate-500">
@@ -1442,7 +1717,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         onChange={(e) => setProdForm({ ...prodForm, reelActivo: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
                     </label>
                   </div>
 
@@ -1502,7 +1777,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <span className="font-bold flex items-center gap-1.5 text-purple-300">
                               <Play className="w-3.5 h-3.5 fill-current" /> Vista previa del Reel:
                             </span>
-                            <span className="text-slate-400 text-[10px] font-mono truncate max-w-55">
+                            <span className="text-slate-400 text-[10px] font-mono truncate max-w-[220px]">
                               {prodForm.reelUrl}
                             </span>
                           </div>
@@ -1705,7 +1980,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                   {/* Add Image Form with PC Upload as Primary */}
                   <div className="pt-3 border-t border-slate-200 space-y-3">
-                    <div className="p-3.5 bg-linear-to-r from-cyan-50 to-teal-50 rounded-xl border border-cyan-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="p-3.5 bg-gradient-to-r from-cyan-50 to-teal-50 rounded-xl border border-cyan-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                           <Upload className="w-4 h-4" />
@@ -2372,7 +2647,34 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   </label>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Status Indicator Banner */}
+                  {contentForm.mercadopago?.accessToken ? (
+                    <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex items-start gap-2.5">
+                      <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-xs text-emerald-900 block">
+                          Checkout Oficial de Mercado Pago Configurado
+                        </span>
+                        <p className="text-[11px] text-emerald-800 leading-relaxed">
+                          Tus clientes serán redirigidos a la pasarela oficial de Mercado Pago para pagar con su <b>dinero en cuenta</b> o <b>tarjetas guardadas</b> en su app.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 flex items-start gap-2.5">
+                      <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-xs text-amber-900 block">
+                          Ingresá tus Credenciales de Producción
+                        </span>
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          Pegá tu <b>Access Token de Producción (APP_USR-...)</b> para activar los cobros reales a tu cuenta de Mercado Pago.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">
                       Access Token de Mercado Pago (Producción) *
@@ -2399,12 +2701,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        title={showPassword ? "Ocultar token" : "Mostrar token"}
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1">
-                      El Access Token comienza con <code className="bg-slate-100 px-1 rounded text-slate-800 font-bold">APP_USR-</code>. Es la llave que le permite a Mercado Pago acreditarte el dinero en tu cuenta bancaria.
+                      El Access Token comienza con <code className="bg-slate-100 px-1 rounded text-slate-800 font-bold">APP_USR-</code>. Es la credencial privada que acredita los pagos en tu cuenta de Mercado Pago.
                     </p>
                   </div>
 
@@ -2422,8 +2725,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             ...contentForm.mercadopago,
                             activo: contentForm.mercadopago?.activo ?? true,
                             accessToken: contentForm.mercadopago?.accessToken || "",
-                            publicKey: e.target.value.trim(),
-                            linkPago: contentForm.mercadopago?.linkPago || ""
+                            publicKey: e.target.value.trim()
                           }
                         })
                       }
@@ -2432,42 +2734,57 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     />
                   </div>
 
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">
-                      Link de Pago Directo de Mercado Pago (Opcional / Alternativa)
-                    </label>
-                    <input
-                      type="url"
-                      value={contentForm.mercadopago?.linkPago || ""}
-                      onChange={(e) =>
-                        setContentForm({
-                          ...contentForm,
-                          mercadopago: {
-                            ...contentForm.mercadopago,
-                            activo: contentForm.mercadopago?.activo ?? true,
-                            accessToken: contentForm.mercadopago?.accessToken || "",
-                            publicKey: contentForm.mercadopago?.publicKey || "",
-                            linkPago: e.target.value.trim()
-                          }
-                        })
-                      }
-                      placeholder="https://mpago.la/... o https://link.mercadopago.com.ar/..."
-                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Si creaste un link de cobro desde la app o web de Mercado Pago, pegalo acá como alternativa directa para redirigir al comprador al instante.
-                    </p>
+                  {/* Test Connection Button & Feedback */}
+                  <div className="pt-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTestMpToken}
+                        disabled={testingMpToken || !contentForm.mercadopago?.accessToken}
+                        className="py-2 px-3.5 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-900 font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${testingMpToken ? "animate-spin" : ""}`} />
+                        <span>{testingMpToken ? "Verificando con Mercado Pago..." : "Probar Credenciales con Mercado Pago"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSaveContent}
+                        disabled={saving}
+                        className="py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>Guardar Configuración de Mercado Pago</span>
+                      </button>
+                    </div>
+
+                    {mpTestResult && (
+                      <div
+                        className={`mt-3 p-3 rounded-xl border text-xs leading-relaxed flex items-start gap-2 ${
+                          mpTestResult.success
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-950 font-medium"
+                            : "bg-rose-50 border-rose-200 text-rose-800"
+                        }`}
+                      >
+                        {mpTestResult.success ? (
+                          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        )}
+                        <span>{mpTestResult.message}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Step by step guide */}
                   <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 space-y-2">
                     <span className="font-bold flex items-center gap-1.5 text-xs text-sky-900">
                       <ExternalLink className="w-3.5 h-3.5 text-sky-600" />
-                      ¿Cómo obtener tu Access Token para cobrar el dinero real?
+                      ¿Dónde encontrar tu Access Token en Mercado Pago?
                     </span>
-                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-sky-900 leading-relaxed">
+                    <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-sky-900 leading-relaxed">
                       <li>
-                        Ingresá a tu cuenta en{" "}
+                        Iniciá sesión en{" "}
                         <a
                           href="https://www.mercadopago.com/developers"
                           target="_blank"
@@ -2477,21 +2794,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           mercadopago.com/developers
                         </a>
                       </li>
-                      <li>Hacé clic en <b>"Tus integraciones"</b> (arriba a la derecha) y seleccioná o creá tu aplicación (ej: <i>Lumbar Fix</i>).</li>
-                      <li>En el menú lateral, seleccioná <b>"Credenciales de producción"</b>.</li>
+                      <li>Hacé clic en <b>"Tus integraciones"</b> (o "Mis aplicaciones") y seleccioná tu aplicación de venta.</li>
+                      <li>En el menú de la izquierda, hacé clic en <b>"Credenciales de producción"</b>.</li>
                       <li>Copiá el <b>Access Token</b> (comienza con <code>APP_USR-</code>) y pegalo en el casillero de arriba.</li>
-                      <li>Hacé clic en el botón <b>"Guardar Configuración de Mercado Pago"</b> aquí abajo.</li>
+                      <li>Hacé clic en <b>"Probar Credenciales"</b> para comprobar la cuenta y luego en <b>"Guardar"</b>.</li>
                     </ol>
                   </div>
-
-                  <button
-                    onClick={handleSaveContent}
-                    disabled={saving}
-                    className="py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>Guardar Configuración de Mercado Pago</span>
-                  </button>
                 </div>
               </div>
 
@@ -2633,6 +2941,403 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   <Save className="w-4 h-4" />
                   <span>Guardar Datos Bancarios</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB: META ADS, FACEBOOK PIXEL & CAPI */}
+          {/* ========================================================= */}
+          {activeTab === "meta" && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Target className="w-5 h-5 text-blue-600" />
+                  Meta Ads, Pixel de Facebook & Conversiones CAPI
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Rastrea en tiempo real el comportamiento de tus visitantes para crear públicos personalizados y medir el ROI de tus campañas en Instagram y Facebook.
+                </p>
+              </div>
+
+              {/* Status Banner */}
+              {contentForm.metaPixel?.pixelId ? (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-emerald-950">
+                        Meta Pixel Activo: ID {contentForm.metaPixel.pixelId}
+                      </span>
+                      <span className="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-full">
+                        Rastreando en vivo
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 leading-relaxed">
+                      El pixel y los eventos de comercio electrónico (PageView, ViewContent, AddToCart, InitiateCheckout, Lead, Purchase y Contact) están activos en toda la tienda.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3">
+                  <Target className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="font-bold text-xs text-blue-950 block">
+                      Vinculá tu Pixel de Facebook / Meta Ads
+                    </span>
+                    <p className="text-[11px] text-blue-800 leading-relaxed">
+                      Ingresá tu <b>Pixel ID</b> a continuación para habilitar automáticamente el seguimiento de campañas y ventas para Meta Ads.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Configuration Form Card */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 text-xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold text-sm">
+                      <Target className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">Configuración del Pixel y CAPI</h4>
+                      <p className="text-slate-500 text-[11px]">
+                        Conecta el navegador de tus clientes y el servidor de Lumbar Fix con Meta.
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <span className="text-[11px] font-semibold text-slate-600">Rastreo Habilitado</span>
+                    <input
+                      type="checkbox"
+                      checked={contentForm.metaPixel?.activo !== false}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          metaPixel: {
+                            activo: e.target.checked,
+                            pixelId: contentForm.metaPixel?.pixelId || "",
+                            conversionApiToken: contentForm.metaPixel?.conversionApiToken || "",
+                            testEventCode: contentForm.metaPixel?.testEventCode || ""
+                          }
+                        })
+                      }
+                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </label>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Pixel ID */}
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Meta Pixel ID (Identificador del Pixel) *
+                    </label>
+                    <input
+                      type="text"
+                      value={contentForm.metaPixel?.pixelId || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          metaPixel: {
+                            activo: contentForm.metaPixel?.activo !== false,
+                            pixelId: e.target.value.trim(),
+                            conversionApiToken: contentForm.metaPixel?.conversionApiToken || "",
+                            testEventCode: contentForm.metaPixel?.testEventCode || ""
+                          }
+                        })
+                      }
+                      placeholder="Ej: 123456789012345"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Código numérico de 15 a 16 dígitos obtenido en tu <b>Administrador de Eventos de Meta</b>.
+                    </p>
+                  </div>
+
+                  {/* Conversions API (CAPI) Token */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-bold text-slate-700 block">
+                        Token de API de Conversiones (CAPI) (Recomendado)
+                      </label>
+                      <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded">
+                        Anti Ad-Blocker
+                      </span>
+                    </div>
+                    <input
+                      type="password"
+                      value={contentForm.metaPixel?.conversionApiToken || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          metaPixel: {
+                            activo: contentForm.metaPixel?.activo !== false,
+                            conversionApiToken: e.target.value.trim(),
+                            pixelId: contentForm.metaPixel?.pixelId || "",
+                            testEventCode: contentForm.metaPixel?.testEventCode || ""
+                          }
+                        })
+                      }
+                      placeholder="EAAG... (Token de acceso generado en Meta)"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      Permite enviar los eventos de <b>Purchase (Compra)</b> y <b>Lead</b> directamente desde el servidor backend. Esto garantiza 100% de precisión de medición incluso si el comprador usa Safari con bloqueo de cookies o AdBlock.
+                    </p>
+                  </div>
+
+                  {/* Test Event Code */}
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Código de Evento de Prueba (Test Event Code - Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={contentForm.metaPixel?.testEventCode || ""}
+                      onChange={(e) =>
+                        setContentForm({
+                          ...contentForm,
+                          metaPixel: {
+                            activo: contentForm.metaPixel?.activo !== false,
+                            testEventCode: e.target.value.trim(),
+                            pixelId: contentForm.metaPixel?.pixelId || "",
+                            conversionApiToken: contentForm.metaPixel?.conversionApiToken || ""
+                          }
+                        })
+                      }
+                      placeholder="Ej: TEST12345"
+                      className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Se encuentra en el Administrador de Eventos de Meta &gt; pestaña <b>"Probar eventos"</b>. Sirve para ver los eventos reflejados de inmediato en pantalla.
+                    </p>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTestMetaPixel}
+                      disabled={testingMetaPixel || !contentForm.metaPixel?.pixelId}
+                      className="py-2.5 px-4 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${testingMetaPixel ? "animate-spin" : ""}`} />
+                      <span>{testingMetaPixel ? "Enviando evento de prueba..." : "Enviar Evento de Prueba (Test Lead / PageView)"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveMetaPixel}
+                      disabled={saving}
+                      className="py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Guardar Configuración de Meta Ads</span>
+                    </button>
+                  </div>
+
+                  {/* Test Feedback Notice */}
+                  {metaTestFeedback && (
+                    <div
+                      className={`p-3.5 rounded-xl border text-xs leading-relaxed flex items-start gap-2.5 animate-fadeIn ${
+                        metaTestFeedback.success
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-950 font-medium"
+                          : "bg-rose-50 border-rose-200 text-rose-800"
+                      }`}
+                    >
+                      {metaTestFeedback.success ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <p>{metaTestFeedback.msg}</p>
+                        {metaTestFeedback.details?.capiResult && (
+                          <pre className="mt-2 p-2 bg-slate-900 text-slate-200 rounded text-[10px] overflow-x-auto">
+                            {JSON.stringify(metaTestFeedback.details.capiResult, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Event Coverage Map */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 text-xs">
+                <div className="border-b border-slate-100 pb-3">
+                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-blue-600" />
+                    Eventos Estándar Mapeados e Integrados en Lumbar Fix
+                  </h4>
+                  <p className="text-slate-500 text-[11px]">
+                    Todos estos eventos se disparan automáticamente en las interacciones clave de la tienda:
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-blue-700">PageView</span>
+                      <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Navegación</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px]">
+                      Se emite al ingresar a cualquier página o recargar la tienda.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-blue-700">ViewContent</span>
+                      <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Producto</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px]">
+                      Se emite cuando el usuario visualiza el producto Faja Lumbar y sus detalles.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-amber-700">AddToCart</span>
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Intención</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px]">
+                      Se emite al hacer clic en "Añadir al Carrito" o seleccionar cualquier pack promocional.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-indigo-700">InitiateCheckout</span>
+                      <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">Checkout</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px]">
+                      Se emite cuando el usuario abre el modal de finalizar compra con sus productos.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-purple-700">AddPaymentInfo</span>
+                      <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded">Método Pago</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px]">
+                      Se emite cuando el usuario escoge entre Mercado Pago, Contra Entrega o Transferencia.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-emerald-700">Lead</span>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">Contacto</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px]">
+                      Se emite cuando el cliente envía el formulario con sus datos de contacto y entrega.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-emerald-800">Purchase (Compra)</span>
+                      <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded">Pixel + CAPI</span>
+                    </div>
+                    <p className="text-emerald-900 text-[11px]">
+                      Se emite al confirmar la orden. Incluye valor monetario exacto en ARS, moneda y código de pedido.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-teal-700">Contact</span>
+                      <span className="text-[10px] font-bold bg-teal-100 text-teal-800 px-2 py-0.5 rounded">WhatsApp</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px]">
+                      Se emite cuando el visitante abre una consulta por el botón flotante de WhatsApp.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step by Step Guide */}
+              <div className="p-5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-2.5 text-xs">
+                <span className="font-bold flex items-center gap-1.5 text-xs text-blue-900">
+                  <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                  Guía rápida para vincular y verificar tu Pixel en Meta Ads
+                </span>
+                <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-blue-900 leading-relaxed">
+                  <li>
+                    Ingresá a tu{" "}
+                    <a
+                      href="https://business.facebook.com/events_manager2"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold underline hover:text-blue-700"
+                    >
+                      Administrador de Eventos de Meta (Events Manager)
+                    </a>.
+                  </li>
+                  <li>
+                    En el menú lateral hacé clic en <b>"Orígenes de datos"</b> y seleccioná o creá tu Pixel / Conjunto de datos.
+                  </li>
+                  <li>
+                    Copiá el <b>Identificador (Pixel ID)</b> numérico y pegalo en el campo <i>Meta Pixel ID</i> arriba.
+                  </li>
+                  <li>
+                    Para habilitar la <b>API de Conversiones</b> (servidor): Ve a <b>Configuración &gt; API de Conversiones &gt; Generar token de acceso</b>, cópialo y pégalo en el campo <i>Token CAPI</i>.
+                  </li>
+                  <li>
+                    Hacé clic en <b>"Guardar Configuración de Meta Ads"</b> y luego en <b>"Enviar Evento de Prueba"</b> para comprobar la recepción instantánea.
+                  </li>
+                  <li>
+                    <i>Tip:</i> Podés instalar la extensión gratuita <b>Meta Pixel Helper</b> para Google Chrome para ver cómo se activan los eventos mientras navegás por tu tienda.
+                  </li>
+                </ol>
+              </div>
+
+              {/* Live Session Event Log */}
+              <div className="p-5 rounded-2xl bg-slate-900 text-slate-100 shadow-xs space-y-3 text-xs">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="font-bold font-mono text-xs">Monitor de Eventos Disparados en esta Sesión</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMetaDiagnostics(getPixelDiagnostics())}
+                    className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Actualizar</span>
+                  </button>
+                </div>
+
+                {metaDiagnostics.recentEvents.length === 0 ? (
+                  <p className="text-slate-400 text-[11px] py-2">
+                    No se han registrado eventos en esta pestaña aún. Navega por la tienda o pulsa "Enviar Evento de Prueba".
+                  </p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 font-mono text-[11px]">
+                    {metaDiagnostics.recentEvents.map((ev, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2 rounded bg-slate-800/80 border border-slate-700/60 flex items-center justify-between gap-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-blue-400 font-bold">{ev.eventName}</span>
+                          {ev.params?.orderId && (
+                            <span className="text-emerald-400 text-[10px]">#{ev.params.orderId}</span>
+                          )}
+                          {ev.params?.value !== undefined && (
+                            <span className="text-amber-300 text-[10px]">${ev.params.value} {ev.params.currency || "ARS"}</span>
+                          )}
+                        </div>
+                        <span className="text-slate-500 text-[10px]">{ev.timestamp}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2804,10 +3509,106 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                 <button
                   onClick={handleSaveContent}
-                  className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs"
+                  className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs cursor-pointer"
                 >
                   Guardar Canales
                 </button>
+              </div>
+
+              {/* Backend Server Configuration (Render & ISAMER OS) */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 text-xs">
+                <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center font-bold">
+                    <RefreshCw className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Conexión con Servidor Backend & ISAMER OS</h4>
+                    <p className="text-slate-500 text-[11px]">
+                      Configuración de la URL de tu API en la nube (Render) y sincronización de pedidos con ISAMER OS.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">
+                      URL Personalizada del Backend (Render / Producción)
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={customBackendUrl}
+                        onChange={(e) => setCustomBackendUrl(e.target.value)}
+                        placeholder="Dejá vacío para usar rutas locales automáticas o pegá tu URL de Render"
+                        className="flex-1 p-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveBackendUrl}
+                        className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-cyan-600 text-white font-bold text-xs transition-colors cursor-pointer shrink-0"
+                      >
+                        Guardar URL
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      URL actualmente en uso: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 font-mono font-bold">{API_URL || "(Rutas relativas automáticas / local)"}</code>
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={testingConnection}
+                      onClick={handleTestConnection}
+                      className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${testingConnection ? "animate-spin" : ""}`} />
+                      <span>{testingConnection ? "Probando..." : "Comprobar Conexión con Servidor"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleResetBackendUrl}
+                      className="px-3 py-2 rounded-xl text-slate-500 hover:text-slate-800 text-xs font-semibold cursor-pointer transition-colors"
+                    >
+                      Restablecer a Modo Local
+                    </button>
+                  </div>
+
+                  {connectionResult && (
+                    <div
+                      className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                        connectionResult.ok
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                          : "bg-amber-50 border-amber-200 text-amber-800"
+                      }`}
+                    >
+                      {connectionResult.ok ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      )}
+                      <span>{connectionResult.msg}</span>
+                    </div>
+                  )}
+
+                  {/* ISAMER Webhook Info Card */}
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1.5">
+                    <div className="flex items-center justify-between font-bold text-slate-800">
+                      <span className="flex items-center gap-1.5">
+                        <Link2 className="w-3.5 h-3.5 text-cyan-600" />
+                        Webhook ISAMER OS (Lumbar Fix Orders):
+                      </span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">Activo</span>
+                    </div>
+                    <code className="text-[10px] block font-mono text-cyan-800 break-all bg-white p-2 rounded border border-slate-200">
+                      https://isamerbblumbar.onrender.com/api/webhooks/lumbarfix-orders
+                    </code>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      Cada vez que un cliente confirma un pedido, se envía automáticamente al sistema ISAMER OS con cabeceras <code className="bg-slate-100 px-1 py-0.2 rounded font-mono">X-Store-Origin: lumbarfix-web</code> para sincronizar stock y despachos.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Reset Defaults */}
@@ -2880,3 +3681,5 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     </div>
   );
 };
+
+export default AdminModal;

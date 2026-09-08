@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Lock, Shield, Eye, EyeOff, X, AlertCircle, CheckCircle2 } from "lucide-react";
+import { API_URL, apiUrl } from "../apiConfig";
 
 interface AdminLoginModalProps {
     isOpen: boolean;
@@ -36,7 +37,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
             // 1. Try primary endpoint
             try {
-                res = await fetch("/api/admin/login", {
+                res = await fetch(`${API_URL}/api/admin/login`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ username: trimmedUser, password: trimmedPass })
@@ -49,7 +50,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
             // 2. If primary failed or returned 404, try backup endpoint /api/login
             if (!res || res.status === 404) {
                 try {
-                    res = await fetch("/api/login", {
+                    res = await fetch(`${API_URL}/api/login`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ username: trimmedUser, password: trimmedPass })
@@ -198,7 +199,11 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                             <Shield className="w-3.5 h-3.5 text-cyan-600" />
                             Credenciales iniciales por defecto:
                         </span>
-
+                        <div className="flex items-center gap-2 font-mono text-[11px] text-slate-700 bg-white/80 p-1.5 rounded border border-cyan-100">
+                            <span>Usuario: <b>admin</b></span>
+                            <span>|</span>
+                            <span>Contraseña: <b>lumbarfix2025</b></span>
+                        </div>
                         <p className="text-[10px] text-cyan-700">
                             * Podés cambiar tu contraseña desde la pestaña "Ajustes y Seguridad" una vez dentro.
                         </p>
@@ -216,3 +221,5 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
         </div>
     );
 };
+
+export default AdminLoginModal;

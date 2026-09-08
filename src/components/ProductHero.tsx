@@ -126,6 +126,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
   const [videoError, setVideoError] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [videoSrc, setVideoSrc] = useState<string>("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const thumbnailContainerRef = useRef<HTMLDivElement>(null);
@@ -141,7 +142,23 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
 
   useEffect(() => {
     setVideoError(false);
-  }, [carouselItems]);
+    if (currentItem.type === "reel") {
+      setVideoSrc(currentItem.url);
+    }
+  }, [carouselItems, safeActiveIndex, currentItem.url, currentItem.type]);
+
+  const handleMediaImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const target = e.currentTarget;
+    const currentSrc = target.src || "";
+    if (currentSrc.includes("/uploads/") && !currentSrc.includes("lumbarfix.onrender.com")) {
+      const parts = currentSrc.split("/uploads/");
+      if (parts[1]) {
+        target.src = `https://lumbarfix.onrender.com/uploads/${parts[1]}`;
+        return;
+      }
+    }
+    target.src = "/images/fajalumbar.jpg";
+  };
 
   const handlePrev = (e?: React.MouseEvent) => {
     e?.preventDefault?.();
@@ -341,7 +358,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
               <div className="absolute top-4 left-4 z-20 flex flex-col gap-1.5 pointer-events-none">
                 {currentItem?.type === "reel" ? (
                   <span key="badge-reel" className="bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md flex items-center gap-1 animate-pulse">
-                    <span className="w-2 h-2 rounded-full bg-white inline-block"></span> Aprovechalo AHORA
+                    <span className="w-2 h-2 rounded-full bg-white inline-block"></span> REEL EN VIVO
                   </span>
                 ) : (
                   <span key="badge-offer" className="bg-rose-600 text-white text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md flex items-center gap-1">
@@ -349,7 +366,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                   </span>
                 )}
                 <span className="bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md flex items-center gap-1">
-                  <Truck className="w-3.5 h-3.5" /> ENVÍO A TODO EL PAÍS
+                  <Truck className="w-3.5 h-3.5" /> ENVÍO GRATIS
                 </span>
               </div>
 
@@ -376,7 +393,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                       <div className="relative w-full h-full flex items-center justify-center">
                         <video
                           ref={videoRef}
-                          src={currentItem.url}
+                          src={videoSrc || currentItem.url}
                           poster={currentItem.poster}
                           autoPlay
                           muted={isMuted}
@@ -385,7 +402,14 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                           preload="auto"
                           onPlay={() => setIsPlaying(true)}
                           onPause={() => setIsPlaying(false)}
-                          onError={() => setVideoError(true)}
+                          onError={() => {
+                            if (videoSrc && videoSrc.startsWith("/uploads/") && !videoSrc.startsWith("http")) {
+                              setVideoSrc(`https://lumbarfix.onrender.com${videoSrc}`);
+                              setVideoError(false);
+                            } else {
+                              setVideoError(true);
+                            }
+                          }}
                           onClick={togglePlayPause}
                           className="w-full h-full object-contain cursor-pointer"
                         />
@@ -450,9 +474,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                       src={currentItem?.url || product?.img || "/images/fajalumbar.jpg"}
                       alt={currentItem?.title || product?.nombre || "Foto del producto"}
                       className="w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/images/fajalumbar.jpg";
-                      }}
+                      onError={handleMediaImageError}
                     />
 
                     {/* Lightbox / Zoom hint */}
@@ -529,9 +551,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                               src={item.poster || product?.img || "/images/fajalumbar.jpg"}
                               alt="Reel poster"
                               className="w-full h-full object-cover rounded-lg opacity-60"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = "/images/fajalumbar.jpg";
-                              }}
+                              onError={handleMediaImageError}
                             />
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
                               <div className="w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md">
@@ -547,9 +567,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                             src={item.url}
                             alt={item.title}
                             className="w-full h-full object-contain p-1"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "/images/fajalumbar.jpg";
-                            }}
+                            onError={handleMediaImageError}
                           />
                         )}
                       </button>
@@ -641,9 +659,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                           src={currentLightboxItem.url || "/images/fajalumbar.jpg"}
                           alt={currentLightboxItem.title}
                           className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-2xl transition-all duration-200"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/images/fajalumbar.jpg";
-                          }}
+                          onError={handleMediaImageError}
                         />
                       </div>
                     )}
@@ -703,12 +719,12 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
               <div className="text-center p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="block text-base">👌</span>
                 <span className="text-[11px] font-bold text-slate-800 block">Talle Universal</span>
-                <span className="text-[10px] text-slate-500">Material premium</span>
+                <span className="text-[10px] text-slate-500">Con extensor gratis</span>
               </div>
               <div className="text-center p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="block text-base">💨</span>
-                <span className="text-[11px] font-bold text-slate-800 block">Adaptable a varios talles</span>
-                <span className="text-[10px] text-slate-500">Bandas regulables</span>
+                <span className="text-[11px] font-bold text-slate-800 block">Bomba Manual</span>
+                <span className="text-[10px] text-slate-500">Tracción regulable</span>
               </div>
               <div className="text-center p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="block text-base">🛡️</span>
@@ -782,7 +798,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
               </div>
 
               <p className="text-[11px] text-rose-800/90 leading-tight">
-                Cuando se agota esta tanda, <strong> el descuento del 40% deja de estar</strong> y volvés a la lista de espera normal.
+                Cuando se agota esta tanda, <strong>el extensor gratis y el descuento del 40% dejan de estar</strong> y volvés a la lista de espera normal.
               </p>
             </div>
 
@@ -891,7 +907,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-600 font-medium">
                 <div className="flex items-center gap-1.5">
                   <Truck className="w-4 h-4 text-cyan-600 shrink-0" />
-                  <span>Envío a todo el país</span>
+                  <span>Envío Gratis</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-cyan-600 shrink-0" />
@@ -941,7 +957,7 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                 {openAccordion === "descripcion" && (
                   <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2">
                     <p>
-                      La faja <strong>Lumbar Fix®</strong> está diseñada para brindar soporte y estabilidad en la zona lumbar. Su sistema de ajuste permite adaptarla cómodamente al cuerpo, proporcionando una sensación de sujeción y mayor comodidad durante las actividades diarias.
+                      La faja <strong>Lumbar Fix®</strong> utiliza tecnología de tracción neumática vertical. Al inflarse con la bomba manual, las cámaras internas se expanden verticalmente, transfiriendo el peso de la parte superior del cuerpo hacia la pelvis.
                     </p>
                     <p>
                       Este estiramiento controlado abre el espacio entre las vértebras lumbares (L1 a L5), creando una presión negativa que alivia la compresión sobre los discos herniados y libera los nervios pinzados, permitiendo el retorno de nutrientes y agua a los tejidos.
@@ -969,10 +985,10 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                 {openAccordion === "uso" && (
                   <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2">
                     <ol className="list-decimal pl-5 space-y-1.5">
-                      <li><strong>Colocá</strong> la faja alrededor de tu zona lumbar, asegurándote de que quede correctamente centrada y cubra la parte baja de la espalda.</li>
-                      <li><strong>Ajustá</strong> las bandas y el velcro de manera firme pero cómoda, logrando una buena sensación de sujeción sin ejercer una presión excesiva.</li>
-                      <li><strong>Utilizala</strong> durante actividades que requieran esfuerzo físico, muchas horas sentado, de pie o movimientos repetitivos para brindar mayor sensación de soporte.</li>
-                      <li><strong>Usala</strong> durante tus actividades diarias, trabajo, caminatas o momentos de descanso, ajustando siempre la presión según tu comodidad y necesidad.</li>
+                      <li><strong>Colocá</strong> la faja desinflada a la altura de la cintura (entre la última costilla y la pelvis).</li>
+                      <li><strong>Ajustá</strong> el velcro de manera firme pero cómoda (usá el extensor si tu cintura supera los 95cm).</li>
+                      <li><strong>Conectá</strong> la boquilla de la bomba manual e inflá suavemente hasta sentir una tracción placentera y descompresora.</li>
+                      <li><strong>Utilizala</strong> durante 20 a 40 minutos mientras trabajás, manejás o descansás, 2 o 3 veces al día.</li>
                     </ol>
                   </div>
                 )}
@@ -997,7 +1013,9 @@ export const ProductHero: React.FC<ProductHeroProps> = ({
                 {openAccordion === "caja" && (
                   <div className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>1x Faja Descompresora Lumbar Fix®.</li>
+                      <li>1x Faja Descompresora Lumbar Fix® con cámaras de tracción vertical.</li>
+                      <li>1x Bomba de inflado manual con válvula de liberación rápida.</li>
+                      <li>1x Cinturón extensor de velcro de REGALO (amplía hasta 125cm).</li>
                       <li>1x Manual ilustrado de uso y recomendaciones en español.</li>
                       <li><em>(Si elegís el Pack Completo: incluye además Rodillera + Tobillera + Foam Roller).</em></li>
                     </ul>

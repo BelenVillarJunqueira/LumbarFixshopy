@@ -1,3 +1,10 @@
+/**
+ * Configuración de URL base de la API para conectar Vercel con Render
+    * Toma la variable de entorno VITE_API_URL configurada en Vercel o en.env
+        * (por ejemplo: https://lumbarfix-backend.onrender.com).
+ * Si no está definida(entorno local o proxy), queda vacía "" para rutas relativas.
+ */
+
 export const getApiBaseUrl = (): string => {
     const envUrl = ((import.meta as any).env?.VITE_API_URL as string | undefined)?.trim();
     if (envUrl) return envUrl.replace(/\/$/, "");
@@ -11,7 +18,14 @@ export const getApiBaseUrl = (): string => {
                 localStorage.getItem("lumbarfix_render_url") ||
                 localStorage.getItem("lumbarfix_backend_url");
             if (saved && saved.trim()) {
-                return saved.trim().replace(/\/$/, "");
+                const trimmed = saved.trim().replace(/\/$/, "");
+                // isamerbblumbar.onrender.com es exclusivamente el servidor de webhook de ISAMER OS,
+                // no contiene la API de productos ni subida de archivos de Lumbar Fix.
+                if (trimmed.includes("isamerbblumbar.onrender.com")) {
+                    console.warn("[apiConfig] isamerbblumbar.onrender.com es el endpoint de webhooks de ISAMER OS, no el backend de la tienda. Usando rutas locales / proxy.");
+                    return "";
+                }
+                return trimmed;
             }
         } catch { }
     }

@@ -33,7 +33,7 @@ export interface IsamerOrderPayload {
  * - 'CMB-LF-PACK' (Pack Completo $89.999)
  */
 export function mapItemToIsamerSku(item: CartItem): string {
-    const id = (item.id || item.productId || item.bundleId || "").toLowerCase();
+    const id = (item.id || item.bundleId || "").toLowerCase();
     const name = (item.nombre || "").toLowerCase();
 
     // 1. Pack Completo / Recomendado

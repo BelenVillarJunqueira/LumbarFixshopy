@@ -1,0 +1,337 @@
+import { Product, BundleOption, SiteContent } from "./types";
+
+export const defaultProducts: Product[] = [
+    {
+        "id": "faja-lumbar",
+        "nombre": "Lumbar Fix",
+        "precio": 39999,
+        "precioAnterior": 35000,
+        "stock": 13,
+        "img": "/images/fajalumbar.jpg",
+        "galeria": [
+            "/images/fajalumbar.jpg",
+            "/uploads/media-1788553123745-ac29z.jpeg",
+            "/uploads/media-1788550922670-6y86p.jpeg",
+            "/uploads/media-1788553130124-fpc8r.webp",
+            "/uploads/media-1788553021021-6055h.jpeg",
+            "/uploads/media-1788553049694-r449i.jpg"
+        ],
+        "descripcion": "Faja descompresora vertebral con tracción vertical. Libera la presión sobre discos herniados y nervio ciático de manera inmediata.",
+        "activo": true,
+        "badge": "MÁS VENDIDO",
+        "caracteristicas": [
+            "Descompresión vertebral",
+            "Extensor de cintura adaptable (70cm - 125cm)",
+            "Material respirable hipoalergénico"
+        ],
+        "reelUrl": "/uploads/media-1788550804054-l2e07.mp4",
+        "reelTitulo": "Reel Demostrativo: Descompresión Lumbar Fix",
+        "reelActivo": true
+    },
+    {
+        "id": "pack-lumbar-fix",
+        "nombre": "PACK Lumbar Fix (Recomendado)",
+        "precio": 89999,
+        "precioAnterior": 149999,
+        "stock": 7,
+        "img": "/images/pack2.png",
+        "galeria": [
+            "/images/pack2.png",
+            "/images/fajalumbar.jpg",
+            "/images/rodillera.jpg",
+            "/images/tobillera.jpg",
+            "/images/foamroller.webp"
+        ],
+        "descripcion": "Combo integral para recuperación, movilidad y alivio completo: Faja Lumbar Fix + Rodillera + Tobillera + Foam Roller.",
+        "activo": true,
+        "badge": "OFERTA PACK COMPLETO",
+        "caracteristicas": [
+            "Faja Lumbar Fix Descompresora",
+            "Rodillera de compresión rotuliana",
+            "Tobillera anatómica elástica",
+            "Foam Roller de descarga muscular"
+        ]
+    },
+    {
+        "id": "rodillera",
+        "nombre": "Rodillera Ortopédica",
+        "precio": 12500,
+        "precioAnterior": 18000,
+        "stock": 10,
+        "img": "/images/rodillera.jpg",
+        "descripcion": "Rodillera elástica de compresión progresiva para alivio articular y estabilidad al caminar.",
+        "activo": true,
+        "badge": "ALTA DEMANDA"
+    },
+    {
+        "id": "tobillera",
+        "nombre": "Tobillera Anatómica",
+        "precio": 18000,
+        "precioAnterior": 24000,
+        "stock": 4,
+        "img": "/images/tobillera.jpg",
+        "descripcion": "Soporte y fijación suave para ligamentos del tobillo con ajuste anatómico.",
+        "activo": true,
+        "badge": "POCO STOCK"
+    },
+    {
+        "id": "foamroller",
+        "nombre": "Foam Roller Miofascial",
+        "precio": 38000,
+        "precioAnterior": 49000,
+        "stock": 12,
+        "img": "/images/foamroller.webp",
+        "descripcion": "Rodillo de automasaje para liberación miofascial y relajación de la zona lumbar y glútea.",
+        "activo": true,
+        "badge": "RECOMENDADO"
+    }
+];
+
+export const defaultBundles: BundleOption[] = [
+    {
+        "id": "bundle-1",
+        "nombre": "1x Faja Lumbar",
+        "subtitulo": "Tratamiento individual",
+        "itemsTexto": "1 Faja Lumbar Fix ",
+        "precio": 20000,
+        "precioAnterior": 35000,
+        "descuentoTexto": "Ahorrás $15.000",
+        "badge": "OFERTA BASE",
+        "badgeColor": "gray",
+        "popular": false,
+        "imagen": "/images/fajalumbar.jpg",
+        "cantidadUnidades": 1
+    },
+    {
+        "id": "bundle-2",
+        "nombre": "2x Faja Lumbar",
+        "subtitulo": "Para vos y tu pareja o familiar",
+        "itemsTexto": "2 Fajas Lumbar Fix ",
+        "precio": 32000,
+        "precioAnterior": 70000,
+        "descuentoTexto": "¡Ahorrás $38.000! ($16.000 c/u)",
+        "badge": "MÁS POPULAR",
+        "badgeColor": "emerald",
+        "popular": true,
+        "imagen": "/images/fajalumbar.jpg",
+        "cantidadUnidades": 2
+    },
+    {
+        "id": "bundle-pack",
+        "nombre": "🔥 PACK COMPLETO LUMBAR FIX",
+        "subtitulo": "Tratamiento completo y rehabilitación articular",
+        "itemsTexto": "Faja Lumbar + Rodillera + Tobillera + Foam Roller",
+        "precio": 89999,
+        "precioAnterior": 149999,
+        "descuentoTexto": "¡Ahorrás $60.000! (40% OFF)",
+        "badge": "MEJOR OFERTA",
+        "badgeColor": "amber",
+        "popular": false,
+        "imagen": "/images/pack2.png",
+        "cantidadUnidades": 1
+    }
+];
+
+export const defaultSiteContent: SiteContent = {
+    "announcementBar": "🚚 ENVÍOS  A TODO EL PAÍS · 📦 PAGO CONTRA ENTREGA DISPONIBLE · ⚡ DESPACHO EN 24HS",
+    "heroHeadline": "FAJA LUMBAR",
+    "heroSubheadline": "Si pasás horas sentado, esto no es opcional. Dolor lumbar, mala postura y fatiga… LUMBAR FIX lo corrige desde el primer uso. Imagenes ilustrativas.",
+    "ratingScore": 4.9,
+    "ratingCount": 1480,
+    "stockRestante": 12,
+    "stockTotal": 60,
+    "ofertaExpiraMinutos": 180,
+    "bulletsPromesa": [
+        "Separás las vértebras y descomprimís los discos sin cirugía ni medicamentos.",
+        "Alivio inmediato de la presión en la zona lumbar y del nervio ciático.",
+        "Corregís la postura en tiempo real mientras trabajás sentado o manejás.",
+        "Fácil de regular: bandas adaptables y ajustables."
+    ],
+    "problema": {
+        "badge": "EL PROBLEMA OCULTO",
+        "titulo": "Tu espalda está gritando lo que tu agenda intenta ignorar.",
+        "items": [
+            "Ese 'pinchazo' constante en la zona baja que ya se volvió parte de tu rutina diaria.",
+            "Sentir el cuerpo pesado, cargado de un estrés físico que te drena la energía.",
+            "Las horas sentado que tu columna ya no tolera, pero tu trabajo te exige cumplir.",
+            "La falta de tiempo real para frenar y cuidarte como verdaderamente te merecés."
+        ],
+        "resumen": "Si pasás el día frente a la pantalla o en un volante, sabés exactamente de qué te hablamos: cada hora sentado comprime los discos vertebrales hasta el límite."
+    },
+    "agitacion": {
+        "titulo": "¿El verdadero peligro? Dejarlo para mañana.",
+        "parrafo1": "Ignorar estas señales es una bola de nieve. El dolor prolongado no desaparece solo: se vuelve crónico, te encierra en un círculo de visitas médicas eternas y te obliga a vivir a base de analgésicos que solo tapan el síntoma.",
+        "parrafo2": "Tu salud no es negociable. Cuidar tu cuerpo hoy es infinitamente más barato y seguro que intentar repararlo mañana.",
+        "alerta": "El 80% de las hernias de disco se agravan por compresión acumulativa que no fue tratada a tiempo con descompresión axial."
+    },
+    "solucion": {
+        "badge": "LA TECNOLOGÍA",
+        "titulo": "LUMBAR FIX",
+        "descripcion": "LUMBAR FIX es una tecnología diseñada para brindar soporte, alivio y corrección postural en la zona baja de la espalda. Funciona mediante columnas neumáticas verticales que se adaptan a la curvatura natural de la columna, detectando la postura y separando las vértebras para permitir que los discos se rehidraten y liberen los nervios pinzados.",
+        "pilares": [
+            {
+                "titulo": "Alivio Inmediato",
+                "desc": "Al inflar la faja, la tracción vertical retira el peso de la gravedad sobre la zona lumbar, frenando el pinchazo en minutos.",
+                "icono": "flame"
+            },
+            {
+                "titulo": "Compresión Neumática Graduada",
+                "desc": "Estructuras de aire inflables que aplican tracción controlada y suave, adaptándose a cualquier complexión corporal.",
+                "icono": "compress"
+            },
+            {
+                "titulo": "Soporte & Corrección Dinámica",
+                "desc": "Evita que la espalda colapse hacia adelante en la silla de oficina o al conducir, reeducando tu postura natural.",
+                "icono": "activity"
+            }
+        ]
+    },
+    "packHero": {
+        "badge": "OFERTA DESTACADA",
+        "titulo": "🔥 PACK LUMBAR FIX (RECOMENDADO)",
+        "subtitulo": "Recuperación integral para todo el cuerpo y articulaciones",
+        "items": [
+            "1x Faja Lumbar Descompresora Lumbar Fix® con  y extensor",
+            "1x Rodillera Anatómica de compresión rotuliana",
+            "1x Tobillera de soporte ligamentario",
+            "1x Foam Roller de descarga miofascial y estiramiento lumbar"
+        ],
+        "precioAntes": 149999,
+        "precioAhora": 89999,
+        "ahorro": "Ahorrás $60.000",
+        "imagen": "/images/pack2.png"
+    },
+    "beneficios": [
+        "Reduce el dolor lumbar agudo y crónico desde la primera postura",
+        "Descomprime las vértebras lumbares (L1 a L5 y S1)",
+        "Mejora la alineación postural y frena la fatiga muscular",
+        "Brinda mayor movilidad y libertad para trabajar o caminar",
+        "Previene hernias discales, ciática y contracturas por sedentarismo",
+        "Fácil de transportar: liviana, discreta y adaptable "
+    ],
+    "comparativa": [
+        {
+            "caracteristica": "Separa vértebras y descomprime discos",
+            "lumbarFix": true,
+            "fajaTradicional": false,
+            "analgesicos": false
+        },
+        {
+            "caracteristica": "Alivio sin efectos secundarios ni fármacos",
+            "lumbarFix": true,
+            "fajaTradicional": true,
+            "analgesicos": false
+        },
+        {
+            "caracteristica": "Regulación de tracción para la comodidad de cada usuario",
+            "lumbarFix": true,
+            "fajaTradicional": false,
+            "analgesicos": false
+        },
+        {
+            "caracteristica": "Mantiene la musculatura activa sin atrofiar",
+            "lumbarFix": true,
+            "fajaTradicional": false,
+            "analgesicos": false
+        },
+        {
+            "caracteristica": "Uso cómodo durante jornadas de trabajo",
+            "lumbarFix": true,
+            "fajaTradicional": "Incómodo y rígido",
+            "analgesicos": "Solo enmascara dolor"
+        },
+        {
+            "caracteristica": "Inversión única con garantía de satisfacción",
+            "lumbarFix": true,
+            "fajaTradicional": false,
+            "analgesicos": false
+        }
+    ],
+    "testimonios": [
+        {
+            "id": "test-1",
+            "autor": "Carlos M.",
+            "rating": 5,
+            "ciudad": "Córdoba",
+            "comentario": "Trabajo 10 horas programando frente a la computadora. Tenía un dolor lumbar constante que me irradiaba a la pierna izquierda. Con la faja al mediodía y a la tarde sentí un alivio que no me daba ningún antiinflamatorio.",
+            "fecha": "Hace 3 días",
+            "verificado": true,
+            "foto": "/images/despues.jpg"
+        },
+        {
+            "id": "test-2",
+            "autor": "Mariana S.",
+            "rating": 5,
+            "ciudad": "Rosario",
+            "comentario": "Excelente producto. Al principio dudaba si realmente se sentía la tracción, pero cuando la regulas a tu medida sentís cómo te estira la columna para arriba y te saca todo el peso de encima. Muy recomendable el pack.",
+            "fecha": "Hace 1 semana",
+            "verificado": true
+        },
+        {
+            "id": "test-3",
+            "autor": "Jorge D.",
+            "rating": 5,
+            "ciudad": "Buenos Aires",
+            "comentario": "El envío llegó en 24 horas y pagué contra entrega al repartidor en la puerta de mi casa. Muy seguro y confiable. La faja me cambió los días en el auto manejando.",
+            "fecha": "Hace 2 semanas",
+            "verificado": true,
+            "foto": "/images/antes.jpg"
+        },
+        {
+            "id": "test-4",
+            "autor": "Valeria P.",
+            "rating": 5,
+            "ciudad": "Mendoza",
+            "comentario": "Tenía diagnóstico de protusión L5-S1. La faja lumbar fix combinada con los ejercicios del foam roller del pack me devolvieron las ganas de entrenar sin miedo.",
+            "fecha": "Hace 2 semanas",
+            "verificado": true
+        }
+    ],
+    "faqs": [
+        {
+            "id": "faq-1",
+            "pregunta": "¿Puedo devolver el producto si no cumple mis expectativas?",
+            "respuesta": "Sí, tenés 30 días de garantía total de satisfacción. Si por cualquier motivo sentís que no es lo que esperabas, gestionamos el cambio o la devolución de tu dinero sin vueltas."
+        },
+        {
+            "id": "faq-2",
+            "pregunta": "¿Qué pasa si el producto está dañado o no es mi talle?",
+            "respuesta": "Ofrecemos reemplazo inmediato 100% cubierto por nosotros. Además, la faja incluye una extensión de velcro extra de regalo que permite regular talles desde 70 cm hasta más de 125 cm de circunferencia abdominal."
+        },
+        {
+            "id": "faq-3",
+            "pregunta": "¿Cuánto cuesta el envío y cuánto tarda?",
+            "respuesta": "El envío es 100% GRATIS a cualquier punto del país para esta promoción. Despachamos en menos de 24 horas y el tiempo de entrega habitual es de 24 a 72 horas hábiles."
+        },
+        {
+            "id": "faq-4",
+            "pregunta": "¿Cómo funciona el pago contra entrega?",
+            "respuesta": "Realizás tu pedido en la página sin ingresar tarjeta si no querés. Nosotros despachamos el paquete y le pagás en efectivo al cartero/repartidor cuando llega a tu domicilio."
+        },
+        {
+            "id": "faq-5",
+            "pregunta": "¿Cómo se utiliza y cuánto tiempo por día?",
+            "respuesta": "Es muy simple: te colocás la faja alrededor de la cintura, la ajustás con el velcro, y la centras hasta sentir un estiramiento agradable y firme. Se recomienda usarla cuando sientas dolor o incomodidad en la zona lumbar, con actividades de esfuerzo o mala posicion prolongada o mucho tiempo de pie."
+        }
+    ],
+    "contacto": {
+        "whatsapp": "+5493515056742",
+        "mensajeWhatsApp": "Hola Lumbar Fix! Quiero consultar sobre la faja descompresora lumbar.",
+        "instagram": "https://www.instagram.com/lumbarfix.argentina/",
+        "facebook": "https://www.facebook.com/profile.php?id=61591520707413",
+        "emailSoporte": "lumbarfixargentina@gmail.com"
+    },
+    "garantiaDias": 30,
+    "datosBancarios": {
+        "banco": "Mercado Pago / Galicia ",
+        "cbu": "0070327530004092450465",
+        "cuit": "23-37066549-4",
+        "titular": "Lumbar Fix ",
+        "alias": "RBVILLAR3.GAL"
+    },
+    "mercadopago": {
+        "activo": true,
+        "accessToken": "APP_USR-8270789566359286-090318-56cd85ccd93782a0f69a171fe7ef9a0f-31478951",
+        "publicKey": "APP_USR-000ffd80-2ba1-4307-b7df-7e7e108a7485"
+    }
+};

@@ -1,8 +1,26 @@
 import React, { useState } from "react";
-import { X, Check, ShieldCheck, Truck, Lock, CreditCard, Banknote, Building, MessageCircle, Copy, CheckCheck, ExternalLink } from "lucide-react";
+import {
+  X,
+  Check,
+  ShieldCheck,
+  Truck,
+  Lock,
+  CreditCard,
+  Banknote,
+  Building,
+  MessageCircle,
+  Copy,
+  CheckCheck,
+  ExternalLink,
+  AlertTriangle,
+  Settings,
+  Key,
+  RefreshCw
+} from "lucide-react";
 import { CartItem, CustomerData, Order, SiteContent } from "../types";
 import { API_URL, apiUrl } from "../apiConfig";
 import { notifyIsamerOS_LumbarFix } from "../services/isamerWebhook";
+import { trackInitiateCheckout, trackAddPaymentInfo, trackLead, trackPurchase } from "../services/metaPixel";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -10,6 +28,7 @@ interface CheckoutModalProps {
   cartItems: CartItem[];
   siteContent?: SiteContent | null;
   onOrderPlaced: (order: Order) => void;
+  onClearCart?: () => void;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -17,7 +36,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
   cartItems,
   siteContent,
-  onOrderPlaced
+  onOrderPlaced,
+  onClearCart
 }) => {
   const [formData, setFormData] = useState<CustomerData>({
     nombre: "",
@@ -39,8 +59,101 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isRedirectingToMp, setIsRedirectingToMp] = useState(false);
+  const [mpRedirectTarget, setMpRedirectTarget] = useState<string | null>(null);
+  const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+
+  // Track InitiateCheckout on open
+  React.useEffect(() => {
+    if (cartItems.length > 0) {
+      const initSubtotal = cartItems.reduce((acc, item) => acc + item.precio * item.cantidad, 0);
+      trackInitiateCheckout({
+        items: cartItems,
+        total: initSubtotal,
+        currency: "ARS"
+      });
+    }
+  }, []);
+
+  // Helper to select payment method and trigger Meta Ads AddPaymentInfo event
+  const handleSelectPaymentMethod = (method: "contraentrega" | "transferencia" | "whatsapp" | "mercadopago") => {
+    setMetodoPago(method);
+    const desc = method === "transferencia" ? Math.round(subtotal * 0.10) : 0;
+    const tot = Math.max(0, subtotal - desc);
+    trackAddPaymentInfo({
+      paymentType: method,
+      value: tot,
+      currency: "ARS"
+    });
+  };
+
+  // Mercado Pago Token Quick Setup
+  const [tokenInput, setTokenInput] = useState("");
+  const [showTokenInline, setShowTokenInline] = useState(false);
+  const [savingToken, setSavingToken] = useState(false);
+  const [tokenFeedback, setTokenFeedback] = useState<{ success: boolean; text: string } | null>(null);
 
   if (!isOpen) return null;
+
+  const activeMpToken = (
+    siteContent?.mercadopago?.accessToken?.trim() ||
+    (typeof window !== "undefined" ? localStorage.getItem("lumbarfix_mp_token")?.trim() : "") ||
+    ""
+  );
+
+  const isMpConfigured = Boolean(activeMpToken && activeMpToken.length > 10);
+
+  const handleSaveTokenInline = async () => {
+    const clean = tokenInput.trim();
+    if (!clean) {
+      setTokenFeedback({ success: false, text: "Ingresá un Access Token válido (APP_USR-...)" });
+      return;
+    }
+    setSavingToken(true);
+    setTokenFeedback(null);
+    try {
+      const testRes = await fetch(apiUrl("/api/mercadopago/test-token"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: clean })
+      });
+      const testData = await testRes.json();
+
+      if (!testRes.ok || !testData.success) {
+        setTokenFeedback({
+          success: false,
+          text: testData.error || "El Access Token ingresado no es válido para Mercado Pago."
+        });
+        setSavingToken(false);
+        return;
+      }
+
+      await fetch(apiUrl("/api/mercadopago/save-token"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: clean })
+      });
+
+      localStorage.setItem("lumbarfix_mp_token", clean);
+      if (siteContent?.mercadopago) {
+        siteContent.mercadopago.accessToken = clean;
+        siteContent.mercadopago.activo = true;
+      }
+
+      setTokenFeedback({
+        success: true,
+        text: `¡Cuenta verificada y guardada! (${testData.user?.nickname || testData.user?.id}).`
+      });
+      setShowTokenInline(false);
+    } catch (err: any) {
+      setTokenFeedback({
+        success: false,
+        text: "Error al guardar token: " + (err.message || "")
+      });
+    } finally {
+      setSavingToken(false);
+    }
+  };
 
   const datosBancarios = siteContent?.datosBancarios || {
     banco: "Mercado Pago / Banco Galicia",
@@ -88,6 +201,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setErrorMsg("Por favor completá la Provincia, Ciudad y Calle de entrega.");
       return;
     }
+
+    // Track Meta Ads Lead event with customer submission
+    trackLead({
+      name: `${formData.nombre} ${formData.apellido}`.trim(),
+      origin: "Checkout Formulario",
+      value: total
+    });
 
     setLoading(true);
 
@@ -165,6 +285,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         console.warn("ISAMER OS notification caught:", isamerErr);
       }
 
+      // Meta Ads Pixel Purchase Event
+      try {
+        trackPurchase({
+          orderId: createdOrder.trackingCode || createdOrder.id,
+          total: createdOrder.total,
+          currency: "ARS",
+          items: createdOrder.items,
+          paymentMethod: createdOrder.metodoPago
+        });
+      } catch (pxErr) {
+        console.warn("Meta Pixel purchase error:", pxErr);
+      }
+
       // If user chose WhatsApp, we also open WhatsApp with order summary
       if (metodoPago === "whatsapp") {
         const text = `Hola Lumbar Fix! Acabo de registrar mi pedido #${createdOrder.trackingCode}.\n` +
@@ -177,47 +310,119 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
 
       // ======================================================================
-      // 💳 2. REDIRECCIÓN OFICIAL A MERCADO PAGO
-      // Redirige al sitio oficial de Mercado Pago para pagar con tarjetas
-      // guardadas, dinero en cuenta o tarjetas de crédito/débito en cuotas.
+      // 💳 2. REDIRECCIÓN OFICIAL A MERCADO PAGO (Checkout Pro Oficial)
       // ======================================================================
       if (metodoPago === "mercadopago") {
-        let redirectUrl = siteContent?.mercadopago?.linkPago || "";
+        if (!activeMpToken) {
+          setErrorMsg("Para pagar con Mercado Pago Oficial ingresá tu Access Token (APP_USR-...). Ingresalo a continuación:");
+          setShowTokenInline(true);
+          setLoading(false);
+          return;
+        }
+
+        let generatedMpUrl: string | null = null;
+        let mpErrorMessage = "";
+
+        // Construct solid items payload for Mercado Pago
+        const preferenceItems = (cartItems && cartItems.length > 0 ? cartItems : [{
+          id: "faja-lumbar",
+          nombre: "Faja Lumbar Fix — Descompresión Lumbar",
+          precio: total > 0 ? total : 20000,
+          cantidad: 1,
+          detalle: "Faja Lumbar Fix"
+        }]).map((item, idx) => ({
+          id: item.id || `prod-${idx + 1}`,
+          nombre: item.nombre,
+          precio: item.precio,
+          cantidad: item.cantidad || 1,
+          detalle: item.detalle
+        }));
 
         try {
-          const mpRes = await fetch(`${API_URL}/api/mercadopago/create-preference`, {
+          const mpRes = await fetch(apiUrl("/api/mercadopago/create-preference"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               orderId: createdOrder.trackingCode || createdOrder.id,
-              items: cartItems,
+              items: preferenceItems,
               cliente: formData,
+              total: total,
               payer: {
                 name: formData.nombre,
                 surname: formData.apellido,
                 email: formData.email || "comprador@lumbarfix.com",
                 phone: { number: formData.telefono }
-              }
+              },
+              customToken: activeMpToken,
+              originUrl: typeof window !== "undefined" ? window.location.origin : undefined
             })
           });
 
-          if (mpRes.ok) {
-            const mpData = await mpRes.json();
-            if (mpData.success && (mpData.initPoint || mpData.init_point)) {
-              redirectUrl = mpData.initPoint || mpData.init_point;
-            }
+          const mpData = await mpRes.json();
+          if (mpRes.ok && mpData.success && (mpData.initPoint || mpData.init_point)) {
+            generatedMpUrl = mpData.initPoint || mpData.init_point;
+          } else {
+            mpErrorMessage = mpData.error || mpData.message || "Mercado Pago no pudo autorizar el pago con este Access Token.";
           }
-        } catch (mpErr) {
-          console.warn("Mercado Pago preference creation call skipped or offline:", mpErr);
+        } catch (mpErr: any) {
+          console.warn("Mercado Pago preference creation call error:", mpErr);
+          mpErrorMessage = "No se pudo conectar con el servidor de Mercado Pago: " + (mpErr.message || "");
         }
 
-        // Si tenemos URL de Mercado Pago (por preferencia o por link de pago directo configurado)
-        if (redirectUrl) {
-          onOrderPlaced(createdOrder);
-          // Redirección inmediata al sitio oficial de Mercado Pago
-          window.location.href = redirectUrl;
+        if (!generatedMpUrl) {
+          setErrorMsg(mpErrorMessage || "Error al conectar con Mercado Pago. Verificá que tu Access Token comience con APP_USR-.");
+          setShowTokenInline(true);
+          setLoading(false);
           return;
         }
+
+        // Limpiar carrito solo cuando Mercado Pago ya generó la URL de pago con éxito
+        try {
+          localStorage.removeItem("lumbarfix_cart");
+        } catch {}
+        if (onClearCart) {
+          onClearCart();
+        }
+
+        const finalOrder: Order = { ...createdOrder, mpInitPoint: generatedMpUrl };
+
+        try {
+          const storedOrders = JSON.parse(localStorage.getItem("lumbarfix_orders") || "[]");
+          const idx = storedOrders.findIndex((o: any) => o.id === finalOrder.id);
+          if (idx >= 0) storedOrders[idx] = finalOrder;
+          else storedOrders.unshift(finalOrder);
+          localStorage.setItem("lumbarfix_orders", JSON.stringify(storedOrders));
+        } catch {}
+
+        setCompletedOrder(finalOrder);
+        setIsRedirectingToMp(true);
+        setMpRedirectTarget(generatedMpUrl);
+
+        // Redirección automática segura al Checkout Oficial de Mercado Pago
+        setTimeout(() => {
+          try {
+            if (typeof window !== "undefined") {
+              if (window.self !== window.top) {
+                // En iframe (preview de AI Studio), abrir en nueva pestaña para que Mercado Pago no sea bloqueado por CSP
+                window.open(generatedMpUrl!, "_blank");
+              } else {
+                window.location.href = generatedMpUrl!;
+              }
+            }
+          } catch {
+            window.location.href = generatedMpUrl!;
+          }
+        }, 1000);
+
+        return;
+      }
+
+      // Para el resto de los métodos (contraentrega, transferencia, whatsapp), limpiar el carrito ahora
+      try {
+        localStorage.removeItem("lumbarfix_cart");
+      } catch {}
+      if (onClearCart) {
+        onClearCart();
       }
 
       onOrderPlaced(createdOrder);
@@ -228,6 +433,91 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setLoading(false);
     }
   };
+
+  // Pantalla de redirección activa a Mercado Pago
+  if (isRedirectingToMp && mpRedirectTarget && completedOrder) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+        <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-center p-6 sm:p-8 space-y-6">
+          {/* Header icon */}
+          <div className="relative mx-auto w-20 h-20">
+            <div className="w-20 h-20 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center animate-pulse">
+              <CreditCard className="w-10 h-10" />
+            </div>
+            <span className="absolute -top-1 -right-1 flex h-5 w-5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-5 w-5 bg-[#009ee3] items-center justify-center text-[10px] text-white font-bold">✓</span>
+            </span>
+          </div>
+
+          <div>
+            <span className="text-[11px] font-black text-sky-700 bg-sky-50 px-3.5 py-1 rounded-full border border-sky-200 uppercase tracking-wider inline-block">
+              MERCADO PAGO CHECKOUT PRO
+            </span>
+            <h2 className="mt-2 text-2xl font-black text-slate-900 font-['Space_Grotesk'] tracking-tight">
+              Redirigiendo a Mercado Pago...
+            </h2>
+            <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
+              En segundos se abrirá el sitio oficial de Mercado Pago para que abones con tus <b>tarjetas guardadas</b>, dinero en cuenta o cuotas.
+            </p>
+          </div>
+
+          {/* Details Card */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-2.5 text-xs">
+            <div className="flex justify-between items-center text-slate-500">
+              <span>Pedido registrado:</span>
+              <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                #{completedOrder.trackingCode}
+              </span>
+            </div>
+            <div className="flex justify-between items-center font-bold text-sm text-slate-900 border-t border-slate-200 pt-2">
+              <span>Total a pagar:</span>
+              <span className="text-sky-700 font-extrabold text-base">{formatPrice(completedOrder.total)}</span>
+            </div>
+            <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500 space-y-1">
+              <div className="flex items-center gap-1.5 text-slate-700 font-semibold">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Pago 100% Protegido con Garantía Mercado Pago</span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Acepta tarjetas de crédito (con cuotas), débito, dinero en cuenta y Mercado Crédito.
+              </p>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="space-y-3 pt-1">
+            <a
+              href={mpRedirectTarget}
+              target={typeof window !== "undefined" && window.self !== window.top ? "_blank" : "_self"}
+              rel="noopener noreferrer"
+              onClick={() => {
+                try {
+                  localStorage.removeItem("lumbarfix_cart");
+                } catch {}
+                if (onClearCart) onClearCart();
+              }}
+              className="w-full py-4 px-6 bg-[#009ee3] hover:bg-[#0086c2] text-white font-extrabold uppercase text-sm rounded-xl tracking-wider transition-all shadow-xl shadow-sky-500/25 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Continuar a Mercado Pago Ahora ↗</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => {
+                onOrderPlaced(completedOrder);
+                onClose();
+              }}
+              className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            >
+              Ver confirmación de pedido y seguimiento
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs">
@@ -283,9 +573,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* Option 1: Contra entrega */}
+              {/* Option 1: Contra Entrega */}
               <div
-                onClick={() => setMetodoPago("contraentrega")}
+                onClick={() => handleSelectPaymentMethod("contraentrega")}
                 className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
                   metodoPago === "contraentrega"
                     ? "border-cyan-600 bg-cyan-50/50 shadow-xs"
@@ -308,7 +598,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {/* Option 2: Mercado Pago */}
               <div
-                onClick={() => setMetodoPago("mercadopago")}
+                onClick={() => handleSelectPaymentMethod("mercadopago")}
                 className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
                   metodoPago === "mercadopago"
                     ? "border-sky-500 bg-sky-50/70 shadow-xs ring-2 ring-sky-500/20"
@@ -333,7 +623,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {/* Option 3: Transferencia Bancaria */}
               <div
-                onClick={() => setMetodoPago("transferencia")}
+                onClick={() => handleSelectPaymentMethod("transferencia")}
                 className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
                   metodoPago === "transferencia"
                     ? "border-cyan-600 bg-cyan-50/50 shadow-xs"
@@ -356,7 +646,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {/* Option 4: WhatsApp */}
               <div
-                onClick={() => setMetodoPago("whatsapp")}
+                onClick={() => handleSelectPaymentMethod("whatsapp")}
                 className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
                   metodoPago === "whatsapp"
                     ? "border-cyan-600 bg-cyan-50/50 shadow-xs"
@@ -417,7 +707,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <div className="bg-white/80 p-2.5 rounded-xl border border-purple-100 flex items-center justify-between">
                     <div>
                       <span className="text-[10px] uppercase font-bold text-purple-600 block">CBU / CVU</span>
-                      <span className="font-mono font-bold text-slate-900 text-[11px] sm:text-xs truncate max-w-35 sm:max-w-45 block">
+                      <span className="font-mono font-bold text-slate-900 text-[11px] sm:text-xs truncate max-w-[140px] sm:max-w-[180px] block">
                         {datosBancarios.cbu}
                       </span>
                     </div>
@@ -448,25 +738,119 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {/* Contextual Payment Details for Mercado Pago */}
             {metodoPago === "mercadopago" && (
-              <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950 space-y-2.5 animate-fadeIn text-xs">
+              <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950 space-y-3 animate-fadeIn text-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CreditCard className="w-4 h-4 text-sky-600" />
                     <span className="font-bold uppercase tracking-wide text-sky-900 text-xs">
-                      Redirección Oficial a Mercado Pago
+                      Checkout Oficial Mercado Pago
                     </span>
                   </div>
                   <span className="text-[10px] font-bold text-sky-800 bg-sky-100 px-2 py-0.5 rounded-full border border-sky-200">
-                    100% Protegido
+                    Dinero en cuenta y tarjetas guardadas
                   </span>
                 </div>
+
                 <p className="text-[11px] text-sky-900 leading-relaxed">
-                  Al confirmar tu pedido, <b>te redirigiremos directamente a la pasarela oficial de Mercado Pago</b>. Podrás iniciar sesión en tu cuenta de Mercado Pago para pagar con las <b>tarjetas que ya tenés guardadas</b>, utilizar tu dinero en cuenta, o pagar con una nueva tarjeta de débito o crédito en cuotas.
+                  Serás redirigido a la pasarela oficial de <b>Mercado Pago</b>. Podrás ingresar a tu cuenta para pagar con tu <b>saldo disponible</b>, tus <b>tarjetas ya guardadas en la app</b> o en cuotas.
                 </p>
-                <div className="flex items-center gap-2 text-[10px] font-semibold text-sky-700 bg-white/80 p-2 rounded-lg border border-sky-100">
-                  <ExternalLink className="w-3.5 h-3.5 shrink-0 text-sky-600" />
-                  <span>Se abrirá el portal oficial de Mercado Pago para completar tu transacción de forma cifrada.</span>
-                </div>
+
+                {isMpConfigured ? (
+                  <div className="p-2.5 rounded-xl bg-white/90 border border-sky-200 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-emerald-700 font-bold text-[11px]">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Conexión con Mercado Pago activa (Token APP_USR)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowTokenInline(!showTokenInline)}
+                        className="text-[10px] font-semibold text-sky-700 hover:text-sky-900 underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Settings className="w-3 h-3" />
+                        <span>{showTokenInline ? "Ocultar" : "Cambiar Token"}</span>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Al confirmar el pedido abajo se creará la preferencia oficial y abrirá directamente la pantalla de cobro de Mercado Pago.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 space-y-2">
+                    <div className="flex items-start gap-2 text-[11px] font-bold text-amber-900">
+                      <Key className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <span>Falta vincular tu Access Token de Mercado Pago para procesar cobros reales</span>
+                    </div>
+                    <p className="text-[10px] text-amber-800 leading-relaxed">
+                      Si sos el dueño de la tienda y tenés tus credenciales de Mercado Pago, ingresá tu Access Token a continuación para activar los cobros al instante:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowTokenInline(true)}
+                      className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Key className="w-3.5 h-3.5" />
+                      <span>Ingresar Access Token (APP_USR-...)</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Inline Token Configuration Box */}
+                {(showTokenInline || (!isMpConfigured && metodoPago === "mercadopago")) && (
+                  <div className="p-3.5 rounded-xl bg-white border-2 border-sky-300 space-y-2.5 shadow-sm animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-sky-600" />
+                        <span>Pegá tu Access Token de Mercado Pago (Producción):</span>
+                      </label>
+                      {isMpConfigured && (
+                        <button
+                          type="button"
+                          onClick={() => setShowTokenInline(false)}
+                          className="text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={tokenInput}
+                        onChange={(e) => setTokenInput(e.target.value)}
+                        placeholder="APP_USR-xxxxxxxxxxxxxxxx-xxxxxx..."
+                        className="flex-1 p-2 rounded-lg border border-slate-300 font-mono text-[11px] focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveTokenInline}
+                        disabled={savingToken || !tokenInput.trim()}
+                        className="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors shrink-0"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${savingToken ? "animate-spin" : ""}`} />
+                        <span>{savingToken ? "Verificando..." : "Vincular"}</span>
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 leading-tight">
+                      Obtenelo en <a href="https://www.mercadopago.com/developers" target="_blank" rel="noopener noreferrer" className="text-sky-600 font-bold underline">mercadopago.com/developers</a> &gt; Tus integraciones &gt; Credenciales de producción.
+                    </p>
+
+                    {tokenFeedback && (
+                      <div
+                        className={`p-2 rounded-lg text-[10px] font-semibold flex items-center gap-1.5 ${
+                          tokenFeedback.success
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : "bg-rose-50 text-rose-800 border border-rose-200"
+                        }`}
+                      >
+                        {tokenFeedback.success ? <CheckCheck className="w-3.5 h-3.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+                        <span>{tokenFeedback.text}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -478,8 +862,42 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </label>
 
             {errorMsg && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
-                {errorMsg}
+              <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <p className="font-medium leading-relaxed">{errorMsg}</p>
+                </div>
+                {metodoPago === "mercadopago" && (
+                  <div className="pt-2 border-t border-rose-200 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowTokenInline(true)}
+                      className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer"
+                    >
+                      🔑 Cambiar Access Token
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSelectPaymentMethod("transferencia");
+                        setErrorMsg("");
+                      }}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer"
+                    >
+                      🏦 Pagar con Transferencia (10% OFF)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSelectPaymentMethod("contraentrega");
+                        setErrorMsg("");
+                      }}
+                      className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-semibold transition-colors cursor-pointer"
+                    >
+                      📦 Pago Contra Entrega
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
